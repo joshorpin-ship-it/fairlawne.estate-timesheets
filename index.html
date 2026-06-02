@@ -782,6 +782,7 @@ function renderOfficeDashboard() {
       <p class="text-muted" style="margin-top:2px;">${j.property}${j.description ? ' — ' + j.description : ''}</p>
     </div>`).join('') : '<p class="text-muted">No jobs loaded yet.</p>';
 
+renderWorkersList();
   const el = document.getElementById('office-entries-list');
   if (!entries.length) { el.innerHTML = '<p class="text-muted">No entries yet.</p>'; return; }
   const grouped = groupByDate(entries);
