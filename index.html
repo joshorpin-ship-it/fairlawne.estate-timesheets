@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Timesheet App</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #111; }
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --color-text-primary: #111;
+  --color-text-secondary: #666;
+  --color-text-error: #c0392b;
+  --color-text-info: #1a6fa8;
+  --color-text-success: #1a7a4a;
+  --color-text-warning: #8a5a00;
+  --color-background-primary: #fff;
+  --color-background-secondary: #f5f5f5;
+  --color-background-info: #e8f2fb;
+  --color-background-success: #e8f7ee;
+  --color-background-warning: #fff8e1;
+  --color-border-primary: #111;
+  --color-border-secondary: #ccc;
+  --color-border-tertiary: #e5e5e5;
+  --color-border-error: #c0392b;
+  --color-border-success: #a8d5bb;
+  --color-border-warning: #f0c040;
+  --border-radius-md: 6px;
+  --border-radius-lg: 10px;
+}
+.nav { display: flex; gap: 8px; padding: 1rem 0 1.5rem; border-bottom: 0.5px solid var(--color-border-tertiary); margin-bottom: 1.5rem; }
+.nav button { font-size: 13px; padding: 6px 16px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); cursor: pointer; }
+.nav button.active { background: var(--color-background-secondary); color: var(--color-text-primary); font-weight: 500; border-color: var(--color-border-primary); }
+.view { display: none; }
+.view.active { display: block; }
+.card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+label { font-size: 13px; color: var(--color-text-secondary); display: block; margin-bottom: 6px; margin-top: 14px; }
+label:first-of-type { margin-top: 0; }
+select, input, textarea { width: 100%; font-size: 14px; padding: 8px 10px; border: 1px solid #ccc; border-radius: var(--border-radius-md); font-family: inherit; }
+select:focus, input:focus, textarea:focus { outline: 2px solid #111; outline-offset: 1px; }
+textarea { height: 60px; resize: none; }
+.btn { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; padding: 7px 14px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-primary); cursor: pointer; font-weight: 500; min-height: 42px; font-family: inherit; }
+.btn-primary { background: var(--color-text-primary); color: #fff; border-color: var(--color-text-primary); }
+.btn-sm { font-size: 12px; padding: 4px 10px; min-height: 32px; }
+.btn:hover { opacity: 0.8; }
+.row-between { display: flex; justify-content: space-between; align-items: center; }
+.text-muted { font-size: 13px; color: var(--color-text-secondary); }
+.login-wrap { max-width: 560px; margin: 1.5rem auto; }
+.toast { font-size: 13px; padding: 10px 16px; border-radius: var(--border-radius-md); background: var(--color-background-success); color: var(--color-text-success); border: 0.5px solid var(--color-border-success); margin-bottom: 1rem; display: none; }
+.toast-warning { background: var(--color-background-warning); color: var(--color-text-warning); border-color: var(--color-border-warning); }
+.toast-error { background: #fdecea; color: var(--color-text-error); border-color: #f5c6cb; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 1rem; }
+.stat-val { font-size: 22px; font-weight: 500; margin-top: 4px; }
+.date-label { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); margin: 1.25rem 0 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.date-block { margin-bottom: 1.25rem; }
+.date-block .date-label { display: block; margin: 0 0 0.5rem 0; padding: 0; }
+.date-card { display: flex; flex-direction: column; gap: 8px; }
+.entry-row { padding: 12px 14px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); background: var(--color-background-primary); }
+.entry-display { display: flex; justify-content: space-between; align-items: center; }
+.entry-info { flex: 1; }
+.entry-job { font-size: 13px; font-weight: 500; }
+.entry-meta { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.entry-edit { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 12px; margin-top: 10px; display: none; }
+.edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.edit-field label { font-size: 12px; margin-bottom: 4px; margin-top: 0; }
+.edit-field input, .edit-field select, .edit-field textarea { font-size: 13px; }
+.edit-comments { margin-bottom: 10px; }
+.edit-comments label { font-size: 12px; margin-bottom: 4px; margin-top: 0; }
+.edit-actions { display: flex; gap: 8px; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+.badge-open { background: var(--color-background-info); color: var(--color-text-info); }
+.badge-done { background: var(--color-background-success); color: var(--color-text-success); }
+.badge-amended { background: var(--color-background-warning); color: var(--color-text-warning); font-size: 10px; padding: 1px 6px; margin-left: 6px; }
+.badge-pending { background: #fff3cd; color: #856404; font-size: 10px; padding: 1px 6px; margin-left: 6px; }
+.audit-log { margin-top: 6px; font-size: 11px; color: var(--color-text-secondary); font-style: italic; }
+.screen-title { font-size: 15px; font-weight: 500; margin-bottom: 1rem; }
+.section-heading { font-size: 14px; font-weight: 500; }
+.job-title { font-size: 13px; font-weight: 500; margin: 0; }
+.full-width { width: 100%; }
+.form-footer { margin-top: 1rem; }
+.form-note { margin-top: 10px; font-size: 12px; }
+.form-section { margin-bottom: 1.5rem; }
+.pin-input { letter-spacing: 4px; }
+.section-label { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 0.25rem; }
+.stat-label { font-size: 13px; }
+.card-header { margin-bottom: 1rem; }
+.job-detail { display: none; margin-top: 12px; padding: 10px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); }
+.app { padding: 0 1rem 2rem; max-width: 980px; margin: 0 auto; }
+.sync-status { font-size: 12px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; display: inline-block; }
+.sync-dot.synced { background: #1a7a4a; }
+.sync-dot.pending { background: #f0c040; }
+.sync-dot.error { background: #c0392b; }
+.spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #ccc; border-top-color: #111; border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.config-banner { background: #fff8e1; border: 1px solid #f0c040; border-radius: var(--border-radius-md); padding: 12px 16px; margin-bottom: 1.5rem; font-size: 13px; color: #8a5a00; }
+.config-banner strong { display: block; margin-bottom: 4px; }
+@media (max-width: 840px) {
+  .grid2 { grid-template-columns: 1fr; }
+  .row-between { flex-direction: column; align-items: stretch; gap: 12px; }
+  .entry-display { flex-direction: column; align-items: stretch; gap: 10px; }
+  .entry-row { padding: 14px; }
+  .card { padding: 1.5rem; }
+}
+@media (min-width: 841px) {
+  .grid2 { gap: 16px; }
+  .card { padding: 1.5rem; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── CONFIG BANNER (hidden once SCRIPT_URL is set) ── -->
+  <div class="config-banner" id="config-banner">
+    <strong>⚙️ Setup required</strong>
+    Paste your Google Apps Script Web App URL into the <code>SCRIPT_URL</code> variable at the top of the &lt;script&gt; section, then save the file. See the included <em>SETUP_GUIDE.txt</em> for step-by-step instructions.
+  </div>
+
+  <div class="nav">
+    <button class="active" onclick="switchTab('worker')">Worker tablet</button>
+    <button onclick="switchTab('office')">Office view</button>
+  </div>
+
+  <!-- ════════════════════════════════ WORKER VIEW ════════════════════════════════ -->
+  <div class="view active" id="view-worker">
+    <div id="login-screen">
+      <div class="login-wrap">
+        <p class="screen-title">Sign in</p>
+        <div class="card">
+          <label>Your name</label>
+          <select id="worker-select">
+            <option value="">Select worker...</option>
+          </select>
+          <label>PIN</label>
+          <input type="password" id="worker-pin" placeholder="••••" maxlength="4" class="pin-input">
+          <div class="form-footer">
+            <button class="btn btn-primary full-width" onclick="workerLogin()">Sign in</button>
+          </div>
+          <div class="sync-status" id="login-sync-status">
+            <span class="sync-dot" id="login-sync-dot"></span>
+            <span id="login-sync-text">Connecting to Google Sheets...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="timesheet-screen" style="display:none;">
+      <div class="row-between form-section">
+        <div>
+          <p class="screen-title" id="worker-greeting">Hello</p>
+          <p class="text-muted">Log time against a job</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="sync-status">
+            <span class="sync-dot" id="worker-sync-dot"></span>
+            <span id="worker-sync-text">—</span>
+          </div>
+          <button class="btn" onclick="workerLogout()">Sign out</button>
+        </div>
+      </div>
+
+      <div id="toast-worker" class="toast">✓ Entry saved</div>
+      <div id="toast-amended" class="toast toast-warning">✓ Entry amended</div>
+      <div id="toast-error" class="toast toast-error">⚠ Saved locally — will sync when online</div>
+
+      <div class="card">
+        <label>Job number</label>
+        <select id="job-select" onchange="fillJobDetails()">
+          <option value="">Select a job...</option>
+        </select>
+        <div id="job-detail" class="job-detail">
+          <p class="job-title" id="job-prop"></p>
+          <p class="text-muted" id="job-desc"></p>
+          <p class="text-muted" id="job-assigned" style="font-size:12px;margin-top:4px;"></p>
+        </div>
+        <div class="grid2">
+          <div>
+            <label>Date</label>
+            <input type="date" id="entry-date">
+          </div>
+          <div>
+            <label>Hours</label>
+            <input type="number" id="entry-hours" placeholder="e.g. 4" min="0.5" max="16" step="0.5">
+          </div>
+        </div>
+        <label>Comments (optional)</label>
+        <textarea id="entry-comments" placeholder="What was done..."></textarea>
+        <div class="form-footer">
+          <button class="btn btn-primary full-width" id="save-btn" onclick="submitEntry()">Save entry</button>
+        </div>
+      </div>
+
+      <p class="section-label">Your entries</p>
+      <div id="entries-by-date"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════ OFFICE VIEW ════════════════════════════════ -->
+  <div class="view" id="view-office">
+    <div id="office-login-screen">
+      <div class="login-wrap">
+        <p class="screen-title">Office access</p>
+        <div class="card">
+          <label>Password</label>
+          <input type="password" id="office-pin" placeholder="Enter password">
+          <div class="form-footer">
+            <button class="btn btn-primary full-width" onclick="officeLogin()">Sign in</button>
+          </div>
+          <p class="text-muted form-note">Set your office password in the Apps Script config</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="office-screen" style="display:none;">
+      <div class="row-between form-section">
+        <div>
+          <p class="section-heading">Office dashboard</p>
+          <p class="text-muted">Manage jobs and export timesheets</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="sync-status">
+            <span class="sync-dot" id="office-sync-dot"></span>
+            <span id="office-sync-text">—</span>
+          </div>
+          <button class="btn" onclick="officeLogout()">Sign out</button>
+        </div>
+      </div>
+
+      <div class="grid2 form-section">
+        <div class="stat">
+          <p class="text-muted stat-label">Open jobs</p>
+          <p class="stat-val" id="stat-open">—</p>
+        </div>
+        <div class="stat">
+          <p class="text-muted stat-label">Total entries</p>
+          <p class="stat-val" id="stat-entries">—</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row-between card-header">
+          <p class="section-heading">Active jobs</p>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm" onclick="refreshOffice()">↻ Refresh</button>
+          </div>
+        </div>
+        <div id="job-list"><p class="text-muted">Loading...</p></div>
+      </div>
+
+      <div class="card">
+        <div class="row-between card-header">
+          <p class="section-heading">Time entries &amp; audit trail</p>
+          <button class="btn btn-primary btn-sm" onclick="exportCSV()">↓ Export CSV</button>
+        </div>
+        <div id="office-entries-list"><p class="text-muted">Loading...</p></div>
+      </div>
+
+      <div class="card">
+        <div class="row-between card-header">
+          <p class="section-heading">Workers</p>
+        </div>
+        <div id="workers-list"><p class="text-muted">Loading...</p></div>
+        <div style="margin-top:1rem;padding-top:1rem;border-top:0.5px solid var(--color-border-tertiary);">
+          <p style="font-size:13px;font-weight:500;margin-bottom:0.75rem;">Add new worker</p>
+          <div class="grid2">
+            <div>
+              <label style="margin-top:0;">Name</label>
+              <input type="text" id="new-worker-name" placeholder="e.g. Dave S">
+            </div>
+            <div>
+              <label style="margin-top:0;">PIN</label>
+              <input type="text" id="new-worker-pin" placeholder="4 digits" maxlength="4" style="letter-spacing:4px;">
+            </div>
+          </div>
+          <div class="form-footer">
+            <button class="btn btn-primary" onclick="addWorker()">Add worker</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  CONFIGURATION — paste your Apps Script Web App URL below
+// ══════════════════════════════════════════════════════════════════
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx__tbfR7jYcFjijwFyQ11OijeTNwTRk_QmmerJ69Mze6qEQ17WvF2r3x9LGFLdEN7c/exec'; // e.g. 'https://script.google.com/macros/s/XXXXX/exec'
+const OFFICE_PASSWORD = 'office123'; // change this to your preferred password
+const POLL_INTERVAL_MS = 60000; // how often worker view auto-refreshes jobs (ms)
+// ══════════════════════════════════════════════════════════════════
+
+let jobs = [];
+let entries = [];
+let workers = [];
+let currentWorker = null;
+let syncQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
+let pollTimer = null;
+
+// ── Startup ──────────────────────────────────────────────────────
+
+window.addEventListener('load', () => {
+  if (SCRIPT_URL) {
+    document.getElementById('config-banner').style.display = 'none';
+    loadInitialData();
+  } else {
+    setSyncStatus('login', 'error', 'Not connected — set SCRIPT_URL');
+    // Load demo data so the app is still usable offline/demo mode
+    jobs = [
+      { id: 'JOB0001', property: 'Estate', description: 'Repair works at Estate', assignedTo: 'Chris R', open: true },
+      { id: 'JOB0002', property: 'Gardens', description: 'Repair works at Gardens', assignedTo: 'Alex A', open: true },
+      { id: 'JOB0003', property: 'Office', description: 'Repair works at Office', assignedTo: 'Les P', open: true },
+    ];
+    entries = JSON.parse(localStorage.getItem('entries') || '[]');
+    populateWorkerDropdown();
+  }
+});
+
+window.addEventListener('online', () => {
+  setSyncStatus('worker', 'pending', 'Back online — syncing...');
+  flushQueue();
+});
+
+// ── API helpers ───────────────────────────────────────────────────
+
+async function api(action, payload = {}) {
+  if (!SCRIPT_URL) throw new Error('No SCRIPT_URL configured');
+  const res = await fetch(SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' }, // avoids CORS preflight
+    body: JSON.stringify({ action, ...payload })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+async function loadInitialData() {
+  setSyncStatus('login', 'pending', 'Connecting...');
+  try {
+    const data = await api('getData');
+    jobs = data.jobs || [];
+    workers = data.workers || [];
+    entries = (data.entries || []).map(e => ({
+      ...e,
+      amendments: amendmentsFromString(typeof e.amendments === 'string' ? e.amendments : JSON.stringify(e.amendments || []))
+    }));
+    // Merge any local queue entries into view
+    syncQueue.forEach(q => {
+      if (!entries.find(e => e.id === q.id)) entries.push(q);
+    });
+    localStorage.setItem('entries', JSON.stringify(entries));
+    localStorage.setItem('workers', JSON.stringify(workers));
+    populateWorkerDropdown();
+    setSyncStatus('login', 'synced', 'Connected to Google Sheets');
+    flushQueue();
+  } catch (err) {
+    setSyncStatus('login', 'error', 'Offline — using local data');
+    jobs = JSON.parse(localStorage.getItem('jobs') || '[]');
+    entries = JSON.parse(localStorage.getItem('entries') || '[]');
+    workers = JSON.parse(localStorage.getItem('workers') || '[]');
+    populateWorkerDropdown();
+  }
+}
+
+async function flushQueue() {
+  if (!syncQueue.length || !SCRIPT_URL || !navigator.onLine) return;
+  const toSync = [...syncQueue];
+  for (const item of toSync) {
+    try {
+      await api(item.action, item.payload);
+      syncQueue = syncQueue.filter(q => q._qid !== item._qid);
+      localStorage.setItem('syncQueue', JSON.stringify(syncQueue));
+    } catch (e) { break; }
+  }
+  setSyncStatus('worker', 'synced', 'All entries synced');
+  renderEntriesByDate();
+}
+
+function queueOrSend(action, payload) {
+  return new Promise(async (resolve) => {
+    if (SCRIPT_URL && navigator.onLine) {
+      try {
+        const result = await api(action, payload);
+        resolve({ synced: true, result });
+        return;
+      } catch (e) { /* fall through to queue */ }
+    }
+    // Save to local queue
+    const item = { action, payload, _qid: Date.now() + Math.random() };
+    syncQueue.push(item);
+    localStorage.setItem('syncQueue', JSON.stringify(syncQueue));
+    resolve({ synced: false });
+  });
+}
+
+// ── Sync status indicator ─────────────────────────────────────────
+
+function setSyncStatus(scope, state, text) {
+  const dot = document.getElementById(scope + '-sync-dot');
+  const txt = document.getElementById(scope + '-sync-text');
+  if (!dot || !txt) return;
+  dot.className = 'sync-dot ' + state;
+  txt.textContent = text;
+}
+
+// ── Navigation ────────────────────────────────────────────────────
+
+function switchTab(tab) {
+  document.querySelectorAll('.nav button').forEach((b, i) =>
+    b.classList.toggle('active', (tab === 'worker' && i === 0) || (tab === 'office' && i === 1))
+  );
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + tab).classList.add('active');
+}
+
+// ── Worker helpers ────────────────────────────────────────────────
+
+function populateWorkerDropdown() {
+  const sel = document.getElementById('worker-select');
+  const active = workers.filter(w => w.active !== false && w.active !== 'FALSE');
+  sel.innerHTML = '<option value="">Select worker...</option>' +
+    active.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
+}
+
+function workerLogin() {
+  const w = document.getElementById('worker-select').value;
+  const p = document.getElementById('worker-pin').value;
+  if (!w || p.length < 4) { alert('Please select your name and enter a 4-digit PIN.'); return; }
+  const worker = workers.find(x => x.name === w);
+  if (worker && String(worker.pin) !== String(p)) { alert('Incorrect PIN. Please try again.'); return; }
+  currentWorker = w;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('timesheet-screen').style.display = 'block';
+  document.getElementById('worker-greeting').textContent = 'Hello, ' + w;
+  document.getElementById('entry-date').value = new Date().toISOString().split('T')[0];
+  populateJobDropdown();
+  renderEntriesByDate();
+  setSyncStatus('worker', syncQueue.length ? 'pending' : 'synced',
+    syncQueue.length ? syncQueue.length + ' entries pending sync' : 'Synced');
+  // Start polling for job updates
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollJobs, POLL_INTERVAL_MS);
+}
+
+function workerLogout() {
+  currentWorker = null;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  document.getElementById('login-screen').style.display = 'block';
+  document.getElementById('timesheet-screen').style.display = 'none';
+  document.getElementById('worker-pin').value = '';
+}
+
+async function pollJobs() {
+  if (!SCRIPT_URL || !navigator.onLine) return;
+  try {
+    const data = await api('getData');
+    jobs = data.jobs || [];
+    workers = data.workers || workers;
+    entries = (data.entries || []).map(e => ({
+      ...e,
+      amendments: amendmentsFromString(typeof e.amendments === 'string' ? e.amendments : JSON.stringify(e.amendments || []))
+    }));
+    syncQueue.forEach(q => { if (q.payload?.entry && !entries.find(e => e.id === q.payload.entry.id)) entries.push(q.payload.entry); });
+    localStorage.setItem('jobs', JSON.stringify(jobs));
+    localStorage.setItem('entries', JSON.stringify(entries));
+    localStorage.setItem('workers', JSON.stringify(workers));
+    populateJobDropdown();
+    renderEntriesByDate();
+    setSyncStatus('worker', 'synced', 'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+  } catch (e) { setSyncStatus('worker', 'error', 'Could not refresh'); }
+}
+
+function populateJobDropdown() {
+  const sel = document.getElementById('job-select');
+  const open = jobs.filter(j => j.open);
+  sel.innerHTML = '<option value="">Select a job...</option>' +
+    open.map(j => `<option value="${j.id}">${j.id} — ${j.property}</option>`).join('');
+}
+
+function fillJobDetails() {
+  const id = document.getElementById('job-select').value;
+  const detail = document.getElementById('job-detail');
+  if (!id) { detail.style.display = 'none'; return; }
+  const job = jobs.find(j => j.id === id);
+  detail.style.display = 'block';
+  document.getElementById('job-prop').textContent = job.property;
+  document.getElementById('job-desc').textContent = job.description || '';
+  document.getElementById('job-assigned').textContent = job.assignedTo ? 'Assigned to: ' + job.assignedTo : '';
+}
+
+async function submitEntry() {
+  const jobId = document.getElementById('job-select').value;
+  const date = document.getElementById('entry-date').value;
+  const hours = parseFloat(document.getElementById('entry-hours').value);
+  const comments = document.getElementById('entry-comments').value;
+  if (!jobId || !date || isNaN(hours)) { alert('Please fill in job, date, and hours.'); return; }
+
+  const entry = { id: uid(), worker: currentWorker, jobId, date, hours, comments, amendments: [], createdAt: new Date().toISOString() };
+  entries.push(entry);
+  localStorage.setItem('entries', JSON.stringify(entries));
+
+  // Reset form
+  document.getElementById('job-select').value = '';
+  document.getElementById('job-detail').style.display = 'none';
+  document.getElementById('entry-hours').value = '';
+  document.getElementById('entry-comments').value = '';
+
+  renderEntriesByDate();
+
+  const { synced } = await queueOrSend('addEntry', { entry: { ...entry, amendments: amendmentsToString(entry.amendments) } });
+  if (synced) {
+    showToast('toast-worker');
+    setSyncStatus('worker', 'synced', 'Synced');
+  } else {
+    showToast('toast-error');
+    setSyncStatus('worker', 'pending', syncQueue.length + ' entries pending sync');
+  }
+}
+
+// ── Amendment serialisation ───────────────────────────────────────
+// Stored in Sheets as: "Chris R · 02 Jun 2026, 20:59 — Wrong hours | Office · 03 Jun 2026, 09:00"
+// Each amendment separated by " | "
+
+function amendmentsToString(amendments) {
+  if (!amendments || !amendments.length) return '';
+  return amendments.map(a => {
+    let s = a.by + ' · ' + a.at;
+    if (a.note) s += ' — ' + a.note;
+    return s;
+  }).join(' | ');
+}
+
+function amendmentsFromString(str) {
+  if (!str) return [];
+  // Try JSON first (backwards compat with old entries)
+  try {
+    const parsed = JSON.parse(str);
+    if (Array.isArray(parsed)) {
+      // Strip out old 'from' field, keep only by/at/note
+      return parsed.map(a => ({ by: a.by || '', at: a.at || '', note: a.note || '' }));
+    }
+  } catch(e) { /* not JSON, parse as string */ }
+  // Parse readable string format
+  return str.split(' | ').map(part => {
+    const dashIdx = part.indexOf(' — ');
+    const meta = dashIdx > -1 ? part.slice(0, dashIdx) : part;
+    const note = dashIdx > -1 ? part.slice(dashIdx + 3) : '';
+    const dotIdx = meta.indexOf(' · ');
+    return {
+      by: dotIdx > -1 ? meta.slice(0, dotIdx) : meta,
+      at: dotIdx > -1 ? meta.slice(dotIdx + 3) : '',
+      note
+    };
+  });
+}
+
+// ── Entry rendering ───────────────────────────────────────────────
+
+function uid() { return 'e' + Date.now() + Math.random().toString(36).slice(2, 6); }
+
+function fmtDate(d) {
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const dt = new Date(d + 'T00:00:00');
+  return days[dt.getDay()] + ' ' + dt.getDate() + ' ' + months[dt.getMonth()] + ' ' + dt.getFullYear();
+}
+
+function renderEntriesByDate() {
+  const container = document.getElementById('entries-by-date');
+  const mine = entries.filter(e => e.worker === currentWorker);
+  if (!mine.length) { container.innerHTML = '<p class="text-muted" style="padding:0.5rem 0;">No entries yet.</p>'; return; }
+  const grouped = groupByDate(mine);
+  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+  container.innerHTML = sortedDates.map(date => `
+    <div class="date-block">
+      <p class="date-label">${fmtDate(date)}</p>
+      <div class="date-card">
+        ${grouped[date].map(e => renderEntryRow(e, false)).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function groupByDate(arr) {
+  return arr.reduce((g, e) => { (g[e.date] = g[e.date] || []).push(e); return g; }, {});
+}
+
+function renderEntryRow(e, isOffice) {
+  const job = jobs.find(j => j.id === e.jobId);
+  const amended = e.amendments && e.amendments.length > 0;
+  const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
+  const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
+  const p = isOffice ? 'o' : 'w';
+  return `
+    <div class="entry-row" id="row-${p}-${e.id}">
+      <div class="entry-display">
+        <div class="entry-info">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span class="entry-job">${e.jobId} — ${job ? job.property : e.jobId}</span>
+            ${amended ? `<span class="badge badge-amended">Amended</span>` : ''}
+            ${isPending ? `<span class="badge badge-pending">Pending sync</span>` : ''}
+          </div>
+          <p class="entry-meta">${e.hours}hrs${e.comments ? ' · ' + e.comments : ''}${isOffice ? ' · <strong>' + e.worker + '</strong>' : ''}</p>
+          ${amended ? `<p class="audit-log">Amended by ${lastAmend.by} · ${lastAmend.at}${lastAmend.note ? ' — ' + lastAmend.note : ''}</p>` : ''}
+        </div>
+        <button class="btn btn-sm" onclick="toggleEdit('${e.id}', ${isOffice})">Edit</button>
+      </div>
+      <div class="entry-edit" id="edit-${p}-${e.id}">
+        <div class="edit-grid">
+          <div class="edit-field">
+            <label>Job</label>
+            <select id="ej-${p}-${e.id}">
+              ${jobs.filter(j => j.open || j.id === e.jobId).map(j =>
+                `<option value="${j.id}" ${j.id === e.jobId ? 'selected' : ''}>${j.id} — ${j.property}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="edit-field">
+            <label>Hours</label>
+            <input type="number" id="eh-${p}-${e.id}" value="${e.hours}" min="0.5" max="16" step="0.5">
+          </div>
+        </div>
+        <div class="edit-comments">
+          <label>Comments</label>
+          <textarea id="en-${p}-${e.id}">${e.comments || ''}</textarea>
+        </div>
+        <div class="edit-comments">
+          <label>Reason for amendment</label>
+          <input type="text" id="er-${p}-${e.id}" placeholder="e.g. Entered wrong hours">
+        </div>
+        <div class="edit-actions">
+          <button class="btn btn-primary btn-sm" onclick="saveEdit('${e.id}', ${isOffice})">Save changes</button>
+          <button class="btn btn-sm" onclick="toggleEdit('${e.id}', ${isOffice})">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function toggleEdit(id, isOffice) {
+  const el = document.getElementById(`edit-${isOffice ? 'o' : 'w'}-${id}`);
+  el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+
+async function saveEdit(id, isOffice) {
+  const p = isOffice ? 'o' : 'w';
+  const entry = entries.find(e => e.id === id);
+  if (!entry) return;
+  const newJob = document.getElementById(`ej-${p}-${id}`).value;
+  const newHours = parseFloat(document.getElementById(`eh-${p}-${id}`).value);
+  const newComments = document.getElementById(`en-${p}-${id}`).value;
+  const reason = document.getElementById(`er-${p}-${id}`).value;
+  if (isNaN(newHours)) { alert('Please enter valid hours.'); return; }
+
+  const amendment = {
+    by: isOffice ? 'Office' : currentWorker,
+    at: new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    note: reason
+  };
+  entry.amendments.push(amendment);
+  entry.jobId = newJob;
+  entry.hours = newHours;
+  entry.comments = newComments;
+  localStorage.setItem('entries', JSON.stringify(entries));
+
+  if (isOffice) { renderOfficeDashboard(); }
+  else { renderEntriesByDate(); showToast('toast-amended'); }
+
+  const { synced } = await queueOrSend('updateEntry', { entry: { ...entry, amendments: amendmentsToString(entry.amendments) } });
+  if (synced && isOffice) setSyncStatus('office', 'synced', 'Saved to Sheets');
+}
+
+function showToast(id) {
+  const t = document.getElementById(id);
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+// ── Office ────────────────────────────────────────────────────────
+
+function officeLogin() {
+  const p = document.getElementById('office-pin').value;
+  if (!p) { alert('Enter a password'); return; }
+  if (p !== OFFICE_PASSWORD) { alert('Incorrect password'); return; }
+  document.getElementById('office-login-screen').style.display = 'none';
+  document.getElementById('office-screen').style.display = 'block';
+  refreshOffice();
+}
+
+function officeLogout() {
+  document.getElementById('office-login-screen').style.display = 'block';
+  document.getElementById('office-screen').style.display = 'none';
+  document.getElementById('office-pin').value = '';
+}
+
+async function refreshOffice() {
+  setSyncStatus('office', 'pending', 'Loading...');
+  if (SCRIPT_URL && navigator.onLine) {
+    try {
+      const data = await api('getData');
+      jobs = data.jobs || [];
+      workers = data.workers || [];
+      entries = (data.entries || []).map(e => ({
+        ...e,
+        amendments: amendmentsFromString(typeof e.amendments === 'string' ? e.amendments : JSON.stringify(e.amendments || []))
+      }));
+      localStorage.setItem('jobs', JSON.stringify(jobs));
+      localStorage.setItem('entries', JSON.stringify(entries));
+      localStorage.setItem('workers', JSON.stringify(workers));
+      setSyncStatus('office', 'synced', 'Live from Google Sheets');
+    } catch (e) {
+      setSyncStatus('office', 'error', 'Using cached data');
+    }
+  } else {
+    jobs = JSON.parse(localStorage.getItem('jobs') || '[]');
+    entries = JSON.parse(localStorage.getItem('entries') || '[]');
+    workers = JSON.parse(localStorage.getItem('workers') || '[]');
+    setSyncStatus('office', 'error', 'Offline — cached data');
+  }
+  renderOfficeDashboard();
+}
+
+function renderOfficeDashboard() {
+  document.getElementById('stat-open').textContent = jobs.filter(j => j.open).length;
+  document.getElementById('stat-entries').textContent = entries.length;
+
+  document.getElementById('job-list').innerHTML = jobs.length ? jobs.map(j => `
+    <div class="entry-row">
+      <div class="row-between">
+        <div>
+          <span style="font-size:13px;font-weight:500;">${j.id}</span>
+          <span class="badge ${j.open ? 'badge-open' : 'badge-done'}" style="margin-left:8px;">${j.open ? 'Open' : 'Complete'}</span>
+          ${j.assignedTo ? `<span class="text-muted" style="font-size:12px;margin-left:8px;">${j.assignedTo}</span>` : ''}
+        </div>
+        ${j.open ? `<button class="btn btn-sm" onclick="markComplete('${j.id}')">✓ Mark complete</button>` : ''}
+      </div>
+      <p class="text-muted" style="margin-top:2px;">${j.property}${j.description ? ' — ' + j.description : ''}</p>
+    </div>`).join('') : '<p class="text-muted">No jobs loaded yet.</p>';
+
+  const el = document.getElementById('office-entries-list');
+  if (!entries.length) { el.innerHTML = '<p class="text-muted">No entries yet.</p>'; return; }
+  const grouped = groupByDate(entries);
+  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+  el.innerHTML = sortedDates.map(date => `
+    <div class="date-block">
+      <p class="date-label">${fmtDate(date)}</p>
+      <div class="date-card">
+        ${grouped[date].map(e => renderEntryRow(e, true)).join('')}
+      </div>
+    </div>`).join('');
+  renderWorkersList();
+}
+
+async function markComplete(id) {
+  const j = jobs.find(j => j.id === id);
+  if (!j) return;
+  j.open = false;
+  localStorage.setItem('jobs', JSON.stringify(jobs));
+  renderOfficeDashboard();
+  await queueOrSend('markComplete', { jobId: id });
+  setSyncStatus('office', 'synced', 'Updated in Sheets');
+}
+
+// ── Workers management ───────────────────────────────────────────
+
+function renderWorkersList() {
+  const el = document.getElementById('workers-list');
+  if (!workers.length) { el.innerHTML = '<p class="text-muted">No workers yet.</p>'; return; }
+  el.innerHTML = workers.map(w => {
+    const active = w.active !== false && w.active !== 'FALSE';
+    return `
+    <div class="entry-row" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;">
+        <span style="font-size:13px;font-weight:500;">${w.name}</span>
+        <span class="badge ${active ? 'badge-open' : 'badge-done'}" style="margin-left:8px;">${active ? 'Active' : 'Inactive'}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="text-muted" style="font-size:12px;">PIN: <strong>${w.pin}</strong></span>
+        <input type="text" id="pin-reset-${w.name.replace(/\s/g,'_')}" placeholder="New PIN" maxlength="4"
+          style="width:80px;letter-spacing:3px;font-size:12px;padding:4px 8px;">
+        <button class="btn btn-sm" onclick="resetPin('${w.name}')">Reset PIN</button>
+        <button class="btn btn-sm" onclick="toggleWorker('${w.name}', ${active})">${active ? 'Deactivate' : 'Reactivate'}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function addWorker() {
+  const name = document.getElementById('new-worker-name').value.trim();
+  const pin = document.getElementById('new-worker-pin').value.trim();
+  if (!name) { alert('Please enter a name.'); return; }
+  if (pin.length !== 4 || isNaN(pin)) { alert('PIN must be exactly 4 digits.'); return; }
+  if (workers.find(w => w.name.toLowerCase() === name.toLowerCase())) { alert('A worker with that name already exists.'); return; }
+  const worker = { name, pin, active: true };
+  workers.push(worker);
+  localStorage.setItem('workers', JSON.stringify(workers));
+  document.getElementById('new-worker-name').value = '';
+  document.getElementById('new-worker-pin').value = '';
+  renderWorkersList();
+  const { synced } = await queueOrSend('addWorker', { worker });
+  if (synced) setSyncStatus('office', 'synced', 'Worker saved to Sheets');
+}
+
+async function resetPin(name) {
+  const inputId = 'pin-reset-' + name.replace(/\s/g, '_');
+  const newPin = document.getElementById(inputId).value.trim();
+  if (newPin.length !== 4 || isNaN(newPin)) { alert('New PIN must be exactly 4 digits.'); return; }
+  const worker = workers.find(w => w.name === name);
+  if (!worker) return;
+  worker.pin = newPin;
+  localStorage.setItem('workers', JSON.stringify(workers));
+  renderWorkersList();
+  const { synced } = await queueOrSend('updateWorker', { worker });
+  if (synced) setSyncStatus('office', 'synced', 'PIN updated in Sheets');
+}
+
+async function toggleWorker(name, currentlyActive) {
+  const worker = workers.find(w => w.name === name);
+  if (!worker) return;
+  worker.active = !currentlyActive;
+  localStorage.setItem('workers', JSON.stringify(workers));
+  renderWorkersList();
+  const { synced } = await queueOrSend('updateWorker', { worker });
+  if (synced) setSyncStatus('office', 'synced', 'Worker updated in Sheets');
+}
+
+function exportCSV() {
+  const headers = ['Worker', 'Job ID', 'Property', 'Date', 'Hours', 'Comments', 'Reported Date', 'Assigned To', 'Amended', 'Amendment Count', 'Last Amended By', 'Last Amended At', 'Last Reason'];
+  const rows = entries.map(e => {
+    const job = jobs.find(j => j.id === e.jobId);
+    const last = e.amendments.length ? e.amendments[e.amendments.length - 1] : null;
+    return [
+      e.worker, e.jobId, job ? job.property : '', e.date, e.hours, e.comments || '',
+      job ? (job.reportedDate || '') : '', job ? (job.assignedTo || '') : '',
+      e.amendments.length ? 'Yes' : 'No', e.amendments.length,
+      last ? last.by : '', last ? last.at : '', last ? last.note : ''
+    ].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
+  });
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'timesheets_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+}
+</script>
+</body>
+</html>
