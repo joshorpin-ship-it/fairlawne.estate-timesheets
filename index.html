@@ -380,6 +380,7 @@ function loadInitialData() {
     workers = data.workers || [];
     entries = (data.entries || []).map(e => ({
       ...e,
+      comments: String(e.comments || ''),
       amendments: amendmentsFromString(typeof e.amendments === 'string' ? e.amendments : JSON.stringify(e.amendments || []))
     }));
     syncQueue.forEach(q => {
@@ -392,6 +393,7 @@ function loadInitialData() {
     updateHoursPlaceholder();
     flushQueue();
   }).catch(function(err) {
+    console.error('loadInitialData failed:', err);
     setSyncStatus('login', 'error', 'Offline — using local data');
     jobs = JSON.parse(localStorage.getItem('jobs') || '[]');
     entries = JSON.parse(localStorage.getItem('entries') || '[]');
@@ -497,6 +499,7 @@ async function pollJobs() {
     workers = data.workers || workers;
     entries = (data.entries || []).map(e => ({
       ...e,
+      comments: String(e.comments || ''),
       amendments: amendmentsFromString(typeof e.amendments === 'string' ? e.amendments : JSON.stringify(e.amendments || []))
     }));
     syncQueue.forEach(q => { if (q.payload?.entry && !entries.find(e => e.id === q.payload.entry.id)) entries.push(q.payload.entry); });
@@ -922,6 +925,7 @@ async function refreshOffice() {
       workers = data.workers || [];
       entries = (data.entries || []).map(e => ({
         ...e,
+        comments: String(e.comments || ''),
         amendments: amendmentsFromString(typeof e.amendments === 'string' ? e.amendments : JSON.stringify(e.amendments || []))
       }));
       localStorage.setItem('jobs', JSON.stringify(jobs));
