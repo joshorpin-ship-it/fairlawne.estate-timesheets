@@ -1129,6 +1129,13 @@ function renderOfficeDashboard() {
       </div>
     </div>`).join('');
   renderWorkersList();
+  renderOfficeAbsences();
+  const awSel = document.getElementById('absence-worker-select');
+  if (awSel) {
+    const active = workers.filter(w => w.active !== false && w.active !== 'FALSE');
+    awSel.innerHTML = '<option value="">Select worker...</option>' +
+      active.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
+  }
 }
 
 async function markComplete(id) {
