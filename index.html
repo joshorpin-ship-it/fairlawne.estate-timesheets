@@ -820,7 +820,7 @@ function renderWeek(wc) {
               const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
               return `
                 <div id="row-w-${e.id}" style="border-bottom:0.5px solid var(--color-border-tertiary);">
-                  <div style="display:grid;grid-template-columns:110px 130px 1fr 40px 150px 60px;align-items:center;">
+                  <div style="display:grid;grid-template-columns:110px 130px 1fr 50px 1fr 60px;align-items:center;">
                     <div style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;">
                       <div style="font-weight:600;">${e.jobId}</div>
                       ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
