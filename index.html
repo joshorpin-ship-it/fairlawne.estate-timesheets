@@ -1221,6 +1221,44 @@ function renderOfficeDashboard() {
   renderOfficeEntries();
 }
 
+function toggleOfficeAbsencePicker(pickerId) {
+  const el = document.getElementById(pickerId);
+  if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+
+function officeAbsencePickerHTML(pickerId, workerName, dateStr, current) {
+  const opts = ['Sick','Annual Leave','Bank Holiday','Other'];
+  return `
+    <select id="oasel-${pickerId}" style="margin-bottom:6px;font-size:12px;padding:5px 8px;width:100%;">
+      ${opts.map(o => `<option value="${o}" ${o===current?'selected':''}>${o}</option>`).join('')}
+    </select>
+    <div class="absence-picker-actions">
+      <button class="btn btn-primary btn-sm" onclick="saveOfficeAbsence('${pickerId}','${workerName}','${dateStr}')">Save</button>
+      ${current ? `<button class="btn btn-sm" onclick="removeOfficeAbsence('${workerName}','${dateStr}')">Remove</button>` : ''}
+      <button class="btn btn-sm" onclick="toggleOfficeAbsencePicker('${pickerId}')">Cancel</button>
+    </div>`;
+}
+
+async function saveOfficeAbsence(pickerId, workerName, dateStr) {
+  const sel = document.getElementById('oasel-' + pickerId);
+  if (!sel) return;
+  const reason = sel.value;
+  absences = absences.filter(a => !(a.worker === workerName && normaliseDate(a.date) === dateStr));
+  absences.push({ worker: workerName, date: dateStr, reason });
+  localStorage.setItem('absences', JSON.stringify(absences));
+  renderOfficeEntries();
+  await queueOrSend('saveAbsence', { absence: { worker: workerName, date: dateStr, reason } });
+  setSyncStatus('office', 'synced', 'Absence saved');
+}
+
+async function removeOfficeAbsence(workerName, dateStr) {
+  absences = absences.filter(a => !(a.worker === workerName && normaliseDate(a.date) === dateStr));
+  localStorage.setItem('absences', JSON.stringify(absences));
+  renderOfficeEntries();
+  await queueOrSend('removeAbsence', { worker: workerName, date: dateStr });
+  setSyncStatus('office', 'synced', 'Absence removed');
+}
+
 function renderOfficeEntries() {
   const el = document.getElementById('office-entries-list');
   if (!el) return;
@@ -1279,13 +1317,16 @@ function renderOfficeEntries() {
       const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
       const dayDate2 = new Date(dayStr + 'T00:00:00');
       const dayName = dayNames[dayDate2.getDay()];
+      const oPickerId = 'oap-' + worker.name.replace(/\s/g,'_') + '-' + dayStr;
 
       const dayCellContent = isBankHoliday
         ? `<div class="day-absence">Bank Holiday</div>`
         : absence
-          ? `<div class="day-absence">${absence.reason}</div>`
+          ? `<div class="day-absence" onclick="toggleOfficeAbsencePicker('${oPickerId}')">${absence.reason}</div>
+             <div class="absence-picker" id="${oPickerId}">${officeAbsencePickerHTML(oPickerId, worker.name, dayStr, absence.reason)}</div>`
           : shouldFlag
-            ? `<div class="day-flag">⚠ ${hoursLogged > 0 ? hoursLogged + 'h logged' : 'No hours'}</div>`
+            ? `<div class="day-flag" onclick="toggleOfficeAbsencePicker('${oPickerId}')">⚠ ${hoursLogged > 0 ? hoursLogged + 'h logged' : 'No hours'}</div>
+               <div class="absence-picker" id="${oPickerId}">${officeAbsencePickerHTML(oPickerId, worker.name, dayStr, '')}</div>`
             : '';
 
       if (isEmpty) {
