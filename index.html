@@ -829,12 +829,12 @@ function renderWeek(wc) {
                     <div style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);">
                       ${job ? job.property : ''}
                     </div>
+                    <div style="padding:9px 8px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:500;text-align:right;">
+                      ${e.hours}h
+                    </div>
                     <div style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-style:italic;color:var(--color-text-secondary);">
                       ${e.comments || ''}
                       ${amended ? `<div class="audit-log-sm" style="font-style:normal;">Amended by ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
-                    </div>
-                    <div style="padding:9px 8px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:500;text-align:right;">
-                      ${e.hours}h
                     </div>
                     <div style="padding:6px 8px;text-align:center;">
                       <button class="btn btn-sm" onclick="toggleEdit('${e.id}', false)">Edit</button>
@@ -883,8 +883,8 @@ function renderWeek(wc) {
             <th style="width:100px;">Day</th>
             <th style="width:130px;">W/O Number</th>
             <th style="width:160px;">Description</th>
-            <th>Comments</th>
             <th style="width:40px;text-align:right;">Hrs</th>
+            <th>Comments</th>
             <th style="width:60px;"></th>
           </tr>
         </thead>
