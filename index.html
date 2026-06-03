@@ -480,7 +480,6 @@ function loadInitialData() {
       if (!entries.find(e => e.id === q.id)) entries.push(q);
     });
     absences = (data.absences || []).map(a => ({ ...a, date: String(a.date || '') }));
-    localStorage.setItem('jobs', JSON.stringify(jobs));
     localStorage.setItem('entries', JSON.stringify(entries));
     localStorage.setItem('workers', JSON.stringify(workers));
     localStorage.setItem('absences', JSON.stringify(absences));
@@ -1592,6 +1591,15 @@ function exportCSV() {
   a.href = URL.createObjectURL(blob);
   a.download = 'timesheets_' + new Date().toISOString().slice(0, 10) + '.csv';
   a.click();
+}
+
+// ── Service Worker registration ───────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.log('SW registration failed:', err));
+  });
 }
 </script>
 </body>
