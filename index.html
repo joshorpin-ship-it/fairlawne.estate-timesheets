@@ -492,8 +492,24 @@ async function pollJobs() {
 function populateJobDropdown() {
   const sel = document.getElementById('job-select');
   const open = jobs.filter(j => j.open);
-  sel.innerHTML = '<option value="">Select a job...</option>' +
-    open.map(j => `<option value="${j.id}">${j.id} — ${j.property}</option>`).join('');
+  const mine = open.filter(j => j.assignedTo === currentWorker);
+  const others = open.filter(j => j.assignedTo !== currentWorker);
+
+  let html = '<option value="">Select a job...</option>';
+
+  if (mine.length) {
+    html += `<optgroup label="Your assigned jobs">`;
+    html += mine.map(j => `<option value="${j.id}">${j.id} — ${j.property}</option>`).join('');
+    html += `</optgroup>`;
+  }
+
+  if (others.length) {
+    html += `<optgroup label="Other jobs">`;
+    html += others.map(j => `<option value="${j.id}">${j.id} — ${j.property}</option>`).join('');
+    html += `</optgroup>`;
+  }
+
+  sel.innerHTML = html;
 }
 
 function fillJobDetails() {
