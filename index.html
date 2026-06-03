@@ -378,6 +378,7 @@ async function loadInitialData() {
     localStorage.setItem('workers', JSON.stringify(workers));
     populateWorkerDropdown();
     setSyncStatus('login', 'synced', 'Connected to Google Sheets');
+    updateHoursPlaceholder();
     flushQueue();
   } catch (err) {
     setSyncStatus('login', 'error', 'Offline — using local data');
@@ -464,8 +465,9 @@ function workerLogin() {
   setSyncStatus('worker', syncQueue.length ? 'pending' : 'synced',
     syncQueue.length ? syncQueue.length + ' entries pending sync' : 'Synced');
   // Start polling for job updates
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(pollJobs, POLL_INTERVAL_MS);
+    if (pollTimer) clearInterval(pollTimer);
+  	pollTimer = setInterval(pollJobs, POLL_INTERVAL_MS);
+  	setTimeout(updateHoursPlaceholder, 500);
 }
 
 function workerLogout() {
@@ -492,6 +494,7 @@ async function pollJobs() {
     localStorage.setItem('workers', JSON.stringify(workers));
     populateJobDropdown();
     renderEntriesByDate();
+    updateHoursPlaceholder();
     setSyncStatus('worker', 'synced', 'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
   } catch (e) { setSyncStatus('worker', 'error', 'Could not refresh'); }
 }
@@ -520,6 +523,17 @@ async function submitEntry() {
   const hours = parseFloat(document.getElementById('entry-hours').value);
   const comments = document.getElementById('entry-comments').value;
   if (!jobId || !date || isNaN(hours)) { alert('Please fill in job, date, and hours.'); return; }
+
+  // Check hours already logged for this day
+  const norm = normaliseDate(date);
+  const alreadyLogged = entries
+    .filter(e => e.worker === currentWorker && normaliseDate(e.date) === norm)
+    .reduce((sum, e) => sum + parseFloat(e.hours || 0), 0);
+  if (alreadyLogged + hours > 8) {
+    const over = (alreadyLogged + hours - 8).toFixed(1);
+    const proceed = confirm(`This entry would put you ${over}h over the 8-hour day. Do you want to continue?`);
+    if (!proceed) return;
+  }
 
   const entry = { id: uid(), worker: currentWorker, jobId, date, hours, comments, amendments: [], createdAt: new Date().toISOString() };
   entries.push(entry);
@@ -616,19 +630,21 @@ function normaliseDate(d) {
 }
 
 function getWeekCommencing(dateStr) {
-  // Returns the Monday of the week for a given YYYY-MM-DD string
-  const dt = new Date(dateStr + 'T00:00:00');
-  const day = dt.getDay(); // 0=Sun,1=Mon...6=Sat
-  const diff = (day === 0) ? -6 : 1 - day; // adjust to Monday
-  const mon = new Date(dt);
-  mon.setDate(dt.getDate() + diff);
-  return mon.toISOString().slice(0, 10);
+  const parts = String(dateStr).slice(0, 10).split('-');
+  const dt = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  const day = dt.getDay();
+  const diff = (day === 0) ? -6 : 1 - day;
+  dt.setDate(dt.getDate() + diff);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const d = String(dt.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + d;
 }
 
 function fmtShortDate(dateStr) {
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const dt = new Date(dateStr + 'T00:00:00');
-  return dt.getDate() + ' ' + months[dt.getMonth()];
+  const parts = String(dateStr).slice(0, 10).split('-');
+  return parseInt(parts[2]) + ' ' + months[parseInt(parts[1]) - 1];
 }
 
 function renderWeek(wc) {
@@ -642,9 +658,12 @@ function renderWeek(wc) {
 
   const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   const weekDays = Array.from({length: 5}, (_, i) => {
-    const d = new Date(wc + 'T00:00:00');
-    d.setDate(d.getDate() + i);
-    return d.toISOString().slice(0, 10);
+    const parts = wc.split('-');
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) + i);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + dd;
   });
 
   const rows = weekDays.map((dayStr, i) => {
