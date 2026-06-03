@@ -600,12 +600,12 @@ function populateJobDropdown() {
   let html = '<option value="">Select a job...</option>';
   if (mine.length) {
     html += `<optgroup label="Your assigned jobs">`;
-    html += mine.map(j => `<option value="${j.id}">${j.id} — ${j.property}</option>`).join('');
+    html += mine.map(j => `<option value="${j.id}">${j.id} · ${j.property} · ${j.description && j.description.length > 40 ? j.description.slice(0, 40) + '…' : (j.description || '')}</option>`).join('');
     html += `</optgroup>`;
   }
   if (others.length) {
     html += `<optgroup label="Other jobs">`;
-    html += others.map(j => `<option value="${j.id}">${j.id} — ${j.property}</option>`).join('');
+    html += others.map(j => `<option value="${j.id}">${j.id} · ${j.property} · ${j.description && j.description.length > 40 ? j.description.slice(0, 40) + '…' : (j.description || '')}</option>`).join('');
     html += `</optgroup>`;
   }
   sel.innerHTML = html;
@@ -820,7 +820,7 @@ function renderWeek(wc) {
               const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
               return `
                 <div id="row-w-${e.id}" style="border-bottom:0.5px solid var(--color-border-tertiary);">
-                  <div style="display:grid;grid-template-columns:130px 160px 1fr 40px 60px;align-items:center;">
+                  <div style="display:grid;grid-template-columns:110px 130px 1fr 40px 150px 60px;align-items:center;">
                     <div style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;">
                       <div style="font-weight:600;">${e.jobId}</div>
                       ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
@@ -828,6 +828,9 @@ function renderWeek(wc) {
                     </div>
                     <div style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);">
                       ${job ? job.property : ''}
+                    </div>
+                    <div style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);">
+                      ${job ? job.description : ''}
                     </div>
                     <div style="padding:9px 8px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:500;text-align:right;">
                       ${e.hours}h
@@ -883,8 +886,8 @@ function renderWeek(wc) {
             <th style="width:100px;">Day</th>
             <th style="width:130px;">W/O Number</th>
             <th style="width:160px;">Description</th>
-            <th style="width:40px;text-align:right;">Hrs</th>
             <th>Comments</th>
+            <th style="width:40px;text-align:right;">Hrs</th>
             <th style="width:60px;"></th>
           </tr>
         </thead>
