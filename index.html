@@ -804,77 +804,55 @@ function renderWeek(wc) {
              <div class="absence-picker" id="ap-${dayStr}">${absencePickerHTML(dayStr, '')}</div>`
           : '';
 
-    return `
+    if (isEmpty) {
+      return `
       <tr class="day-row">
         <td class="day-cell">
           <div class="day-name">${dayNames[i]}</div>
           <div class="day-date">${fmtShortDate(dayStr)}</div>
           ${dayCellExtra}
         </td>
-        ${isEmpty
-          ? `<td class="day-empty" colspan="5" style="padding:10px 12px;font-size:12px;color:var(--color-text-secondary);">—</td>`
-          : `<td colspan="5" style="padding:0;">` + dayEntries.map(e => {
-              const job = jobs.find(j => j.id === e.jobId);
-              const amended = e.amendments && e.amendments.length > 0;
-              const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
-              const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
-              return `
-                <div id="row-w-${e.id}" style="border-bottom:0.5px solid var(--color-border-tertiary);">
-                  <div style="display:grid;grid-template-columns:110px 130px 1fr 50px 120px 60px;align-items:center;">
-                    <div style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;">
-                      <div style="font-weight:600;">${e.jobId}</div>
-                      ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
-                      ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
-                    </div>
-                    <div style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);">
-                      ${job ? job.property : ''}
-                    </div>
-                    <div style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);">
-                      ${job ? job.description : ''}
-                    </div>
-                    <div style="padding:9px 8px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:500;text-align:right;">
-                      ${e.hours}h
-                    </div>
-                    <div style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-style:italic;color:var(--color-text-secondary);">
-                      ${e.comments || ''}
-                      ${amended ? `<div class="audit-log-sm" style="font-style:normal;">Amended by ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
-                    </div>
-                    <div style="padding:6px 8px;text-align:center;">
-                      <button class="btn btn-sm" onclick="toggleEdit('${e.id}', false)">Edit</button>
-                    </div>
-                  </div>
-                  <div class="entry-edit" id="edit-w-${e.id}">
-                    <div class="edit-grid">
-                      <div class="edit-field">
-                        <label>Job</label>
-                        <select id="ej-w-${e.id}">
-                          ${jobs.filter(j => j.open || j.id === e.jobId).map(j =>
-                            `<option value="${j.id}" ${j.id === e.jobId ? 'selected' : ''}>${j.id} — ${j.property}</option>`
-                          ).join('')}
-                        </select>
-                      </div>
-                      <div class="edit-field">
-                        <label>Hours</label>
-                        <input type="number" id="eh-w-${e.id}" value="${e.hours}" min="0.5" max="16" step="0.5">
-                      </div>
-                    </div>
-                    <div class="edit-comments">
-                      <label>Comments</label>
-                      <textarea id="en-w-${e.id}">${e.comments || ''}</textarea>
-                    </div>
-                    <div class="edit-comments">
-                      <label>Reason for amendment</label>
-                      <input type="text" id="er-w-${e.id}" placeholder="e.g. Entered wrong hours">
-                    </div>
-                    <div class="edit-actions">
-                      <button class="btn btn-primary btn-sm" onclick="saveEdit('${e.id}', false)">Save changes</button>
-                      <button class="btn btn-sm" onclick="toggleEdit('${e.id}', false)">Cancel</button>
-                    </div>
-                  </div>
-                </div>`;
-            }).join('') + `</td>`
-        }
+        <td class="day-empty" colspan="6" style="padding:10px 12px;font-size:12px;color:var(--color-text-secondary);">—</td>
       </tr>`;
+    }
+
+    return dayEntries.map((e, idx) => {
+      const job = jobs.find(j => j.id === e.jobId);
+      const amended = e.amendments && e.amendments.length > 0;
+      const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
+      const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
+
+      return `
+      <tr class="day-row">
+        ${idx === 0 ? `
+        <td class="day-cell" rowspan="${dayEntries.length}">
+          <div class="day-name">${dayNames[i]}</div>
+          <div class="day-date">${fmtShortDate(dayStr)}</div>
+          ${dayCellExtra}
+        </td>` : ''}
+        <td style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;">
+          <div style="font-weight:600;">${e.jobId}</div>
+          ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
+          ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
+        </td>
+        <td style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);">
+          ${job ? job.property : ''}
+        </td>
+        <td style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);">
+          ${job ? job.description : ''}
+        </td>
+        <td style="padding:9px 8px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:500;text-align:right;">
+          ${e.hours}h
+        </td>
+        <td style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-style:italic;color:var(--color-text-secondary);">
+          ${e.comments || ''}
+          ${amended ? `<div class="audit-log-sm" style="font-style:normal;">Amended by ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
+        </td>
+        <td style="padding:6px 8px;text-align:center;">
+          <button class="btn btn-sm" onclick="toggleEdit('${e.id}', false)">Edit</button>
+        </td>
+      </tr>`;
+    }).join('');
   }).join('');
 
   return `
