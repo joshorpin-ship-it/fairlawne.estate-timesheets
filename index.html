@@ -61,9 +61,9 @@ textarea { height: 60px; resize: none; }
 /* ── Timesheet week view ── */
 .week-block { margin-bottom: 1.5rem; }
 .week-heading { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-.week-table { width: 100%; border-collapse: collapse; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
+.week-table { width: 100%; border-collapse: collapse; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; table-layout: fixed; }
 .week-table th { font-size: 11px; font-weight: 600; color: var(--color-text-secondary); text-align: left; padding: 8px 12px; background: var(--color-background-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); }
-.week-table td { font-size: 12px; padding: 0; vertical-align: top; }
+.week-table td { font-size: 12px; padding: 0; vertical-align: top; overflow-wrap: anywhere; }
 .day-row { border-bottom: 0.5px solid var(--color-border-tertiary); }
 .day-row:last-child { border-bottom: none; }
 .day-cell { padding: 10px 12px; width: 100px; min-width: 90px; border-right: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); }
@@ -854,6 +854,24 @@ function renderWeek(wc) {
       </tr>`;
     }).join('');
   }).join('');
+                    <div class="edit-comments">
+                      <label>Comments</label>
+                      <textarea id="en-w-${e.id}">${e.comments || ''}</textarea>
+                    </div>
+                    <div class="edit-comments">
+                      <label>Reason for amendment</label>
+                      <input type="text" id="er-w-${e.id}" placeholder="e.g. Entered wrong hours">
+                    </div>
+                    <div class="edit-actions">
+                      <button class="btn btn-primary btn-sm" onclick="saveEdit('${e.id}', false)">Save changes</button>
+                      <button class="btn btn-sm" onclick="toggleEdit('${e.id}', false)">Cancel</button>
+                    </div>
+                  </div>
+                </div>`;
+            }).join('') + `</td>`
+        }
+      </tr>`;
+  }).join('');
 
   return `
     <div class="week-block">
@@ -862,12 +880,12 @@ function renderWeek(wc) {
         <thead>
           <tr>
             <th style="width:100px;">Day</th>
-            <th style="width:110px;">W/O Number</th>
-            <th style="width:130px;">Property</th>
+            <th style="width:120px;">W/O Number</th>
+            <th style="width:140px;">Property</th>
             <th>Description</th>
-            <th style="width:50px;text-align:right;">Hrs</th>
+            <th style="width:70px;text-align:right;">Hrs</th>
             <th>Comments</th>
-            <th style="width:60px;"></th>
+            <th style="width:80px;"></th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
