@@ -58,6 +58,30 @@ textarea { height: 60px; resize: none; }
 .date-block .date-label { display: block; margin: 0 0 0.5rem 0; padding: 0; }
 .date-card { display: flex; flex-direction: column; gap: 8px; }
 .entry-row { padding: 12px 14px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); background: var(--color-background-primary); }
+/* ── Timesheet week view ── */
+.week-block { margin-bottom: 1.5rem; }
+.week-heading { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+.week-table { width: 100%; border-collapse: collapse; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
+.week-table th { font-size: 11px; font-weight: 600; color: var(--color-text-secondary); text-align: left; padding: 8px 12px; background: var(--color-background-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); }
+.week-table td { font-size: 12px; padding: 0; vertical-align: top; }
+.day-row { border-bottom: 0.5px solid var(--color-border-tertiary); }
+.day-row:last-child { border-bottom: none; }
+.day-cell { padding: 10px 12px; width: 100px; min-width: 90px; border-right: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); }
+.day-name { font-size: 12px; font-weight: 600; color: var(--color-text-primary); }
+.day-date { font-size: 11px; color: var(--color-text-secondary); margin-top: 1px; }
+.day-entries { padding: 0; flex: 1; }
+.day-entry { padding: 9px 12px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.day-entry:last-child { border-bottom: none; }
+.day-entry-info { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.day-entry-main { flex: 1; }
+.day-entry-job { font-size: 12px; font-weight: 600; color: var(--color-text-primary); }
+.day-entry-desc { font-size: 12px; color: var(--color-text-secondary); margin-top: 1px; }
+.day-entry-comments { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; font-style: italic; }
+.day-entry-hours { font-size: 12px; font-weight: 500; color: var(--color-text-primary); white-space: nowrap; min-width: 36px; text-align: right; }
+.day-empty { padding: 10px 12px; color: var(--color-text-secondary); font-size: 12px; }
+.day-weekend { background: var(--color-background-secondary); opacity: 0.6; }
+.badge-amended-sm { font-size: 10px; padding: 1px 5px; border-radius: 10px; background: var(--color-background-warning); color: var(--color-text-warning); margin-left: 4px; font-weight: 500; }
+.audit-log-sm { font-size: 10px; color: var(--color-text-secondary); font-style: italic; margin-top: 2px; }
 .entry-display { display: flex; justify-content: space-between; align-items: center; }
 .entry-info { flex: 1; }
 .entry-job { font-size: 13px; font-weight: 500; }
@@ -209,7 +233,7 @@ textarea { height: 60px; resize: none; }
           <div class="form-footer">
             <button class="btn btn-primary full-width" onclick="officeLogin()">Sign in</button>
           </div>
-
+          <p class="text-muted form-note">Set your office password in the Apps Script config</p>
         </div>
       </div>
     </div>
@@ -252,7 +276,7 @@ textarea { height: 60px; resize: none; }
 
       <div class="card">
         <div class="row-between card-header">
-          <p class="section-heading">Time entries </p>
+          <p class="section-heading">Time entries &amp; audit trail</p>
           <button class="btn btn-primary btn-sm" onclick="exportCSV()">↓ Export CSV</button>
         </div>
         <div id="office-entries-list"><p class="text-muted">Loading...</p></div>
@@ -289,7 +313,7 @@ textarea { height: 60px; resize: none; }
 // ══════════════════════════════════════════════════════════════════
 //  CONFIGURATION — paste your Apps Script Web App URL below
 // ══════════════════════════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx09LBqEh-8vq8DnMz_yuerJHhKDQNajRs3UBRIYwSDCKd3mj7nZNaylIllm_0l08cu/exec'; // e.g. 'https://script.google.com/macros/s/XXXXX/exec'
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbydAow_rNgHVN-FCQG3ibSbRIYNTvIxjjrl1m-bYUY2dkLlH2_BB7-rvqCSTESy-3kY/exec'; // e.g. 'https://script.google.com/macros/s/XXXXX/exec'
 const OFFICE_PASSWORD = 'office123'; // change this to your preferred password
 const POLL_INTERVAL_MS = 60000; // how often worker view auto-refreshes jobs (ms)
 // ══════════════════════════════════════════════════════════════════
@@ -327,30 +351,13 @@ window.addEventListener('online', () => {
 
 // ── API helpers ───────────────────────────────────────────────────
 
-function api(action, payload = {}) {
-  return new Promise((resolve, reject) => {
-    if (!SCRIPT_URL) { reject(new Error('No SCRIPT_URL configured')); return; }
-    const cbName = 'cb_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-    const params = new URLSearchParams({ action, data: JSON.stringify(payload), callback: cbName });
-    const script = document.createElement('script');
-    const timer = setTimeout(() => {
-      cleanup();
-      reject(new Error('Request timed out'));
-    }, 15000);
-    function cleanup() {
-      clearTimeout(timer);
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-    }
-    window[cbName] = function(data) {
-      cleanup();
-      if (data.error) reject(new Error(data.error));
-      else resolve(data);
-    };
-    script.src = SCRIPT_URL + '?' + params.toString();
-    script.onerror = function() { cleanup(); reject(new Error('Script load failed')); };
-    document.head.appendChild(script);
-  });
+async function api(action, payload = {}) {
+  if (!SCRIPT_URL) throw new Error('No SCRIPT_URL configured');
+  const params = new URLSearchParams({ action, data: JSON.stringify(payload) });
+  const res = await fetch(SCRIPT_URL + '?' + params.toString(), { method: 'GET' });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data;
 }
 
 async function loadInitialData() {
@@ -492,24 +499,8 @@ async function pollJobs() {
 function populateJobDropdown() {
   const sel = document.getElementById('job-select');
   const open = jobs.filter(j => j.open);
-  const mine = open.filter(j => j.assignedTo === currentWorker);
-  const others = open.filter(j => j.assignedTo !== currentWorker);
-
-  let html = '<option value="">Select a job...</option>';
-
-  if (mine.length) {
-    html += `<optgroup label="Your assigned jobs">`;
-    html += mine.map(j => `<option value="${j.id}">${j.id} — ${j.property}</option>`).join('');
-    html += `</optgroup>`;
-  }
-
-  if (others.length) {
-    html += `<optgroup label="Other jobs">`;
-    html += others.map(j => `<option value="${j.id}">${j.id} — ${j.property}</option>`).join('');
-    html += `</optgroup>`;
-  }
-
-  sel.innerHTML = html;
+  sel.innerHTML = '<option value="">Select a job...</option>' +
+    open.map(j => `<option value="${j.id}">${j.id} — ${j.property}</option>`).join('');
 }
 
 function fillJobDetails() {
@@ -624,19 +615,131 @@ function normaliseDate(d) {
   return s;
 }
 
+function getWeekCommencing(dateStr) {
+  // Returns the Monday of the week for a given YYYY-MM-DD string
+  const dt = new Date(dateStr + 'T00:00:00');
+  const day = dt.getDay(); // 0=Sun,1=Mon...6=Sat
+  const diff = (day === 0) ? -6 : 1 - day; // adjust to Monday
+  const mon = new Date(dt);
+  mon.setDate(dt.getDate() + diff);
+  return mon.toISOString().slice(0, 10);
+}
+
+function fmtShortDate(dateStr) {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dt = new Date(dateStr + 'T00:00:00');
+  return dt.getDate() + ' ' + months[dt.getMonth()];
+}
+
 function renderEntriesByDate() {
   const container = document.getElementById('entries-by-date');
   const mine = entries.filter(e => e.worker === currentWorker);
   if (!mine.length) { container.innerHTML = '<p class="text-muted" style="padding:0.5rem 0;">No entries yet.</p>'; return; }
-  const grouped = groupByDate(mine);
-  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-  container.innerHTML = sortedDates.map(date => `
-    <div class="date-block">
-      <p class="date-label">${fmtDate(date)}</p>
-      <div class="date-card">
-        ${grouped[date].map(e => renderEntryRow(e, false)).join('')}
-      </div>
-    </div>`).join('');
+
+  // Group by week commencing (Monday)
+  const byWeek = {};
+  mine.forEach(e => {
+    const norm = normaliseDate(e.date);
+    const wc = getWeekCommencing(norm);
+    if (!byWeek[wc]) byWeek[wc] = {};
+    if (!byWeek[wc][norm]) byWeek[wc][norm] = [];
+    byWeek[wc][norm].push(e);
+  });
+
+  const sortedWeeks = Object.keys(byWeek).sort((a, b) => b.localeCompare(a));
+  const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+
+  container.innerHTML = sortedWeeks.map(wc => {
+    const weekDays = Array.from({length: 5}, (_, i) => {
+      const d = new Date(wc + 'T00:00:00');
+      d.setDate(d.getDate() + i);
+      return d.toISOString().slice(0, 10);
+    });
+
+    const rows = weekDays.map((dayStr, i) => {
+      const dayEntries = byWeek[wc][dayStr] || [];
+      const isEmpty = dayEntries.length === 0;
+      return `
+        <tr class="day-row">
+          <td class="day-cell">
+            <div class="day-name">${dayNames[i]}</div>
+            <div class="day-date">${fmtShortDate(dayStr)}</div>
+          </td>
+          <td class="day-entries">
+            ${isEmpty
+              ? `<div class="day-empty">—</div>`
+              : dayEntries.map(e => {
+                  const job = jobs.find(j => j.id === e.jobId);
+                  const amended = e.amendments && e.amendments.length > 0;
+                  const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
+                  const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
+                  return `
+                    <div class="day-entry" id="row-w-${e.id}">
+                      <div class="day-entry-info">
+                        <div class="day-entry-main">
+                          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+                            <span class="day-entry-job">${e.jobId}</span>
+                            ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
+                            ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
+                          </div>
+                          <div class="day-entry-desc">${job ? job.property : ''}</div>
+                          ${e.comments ? `<div class="day-entry-comments">${e.comments}</div>` : ''}
+                          ${amended ? `<div class="audit-log-sm">Amended by ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
+                        </div>
+                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                          <span class="day-entry-hours">${e.hours}h</span>
+                          <button class="btn btn-sm" onclick="toggleEdit('${e.id}', false)">Edit</button>
+                        </div>
+                      </div>
+                      <div class="entry-edit" id="edit-w-${e.id}">
+                        <div class="edit-grid">
+                          <div class="edit-field">
+                            <label>Job</label>
+                            <select id="ej-w-${e.id}">
+                              ${jobs.filter(j => j.open || j.id === e.jobId).map(j =>
+                                `<option value="${j.id}" ${j.id === e.jobId ? 'selected' : ''}>${j.id} — ${j.property}</option>`
+                              ).join('')}
+                            </select>
+                          </div>
+                          <div class="edit-field">
+                            <label>Hours</label>
+                            <input type="number" id="eh-w-${e.id}" value="${e.hours}" min="0.5" max="16" step="0.5">
+                          </div>
+                        </div>
+                        <div class="edit-comments">
+                          <label>Comments</label>
+                          <textarea id="en-w-${e.id}">${e.comments || ''}</textarea>
+                        </div>
+                        <div class="edit-comments">
+                          <label>Reason for amendment</label>
+                          <input type="text" id="er-w-${e.id}" placeholder="e.g. Entered wrong hours">
+                        </div>
+                        <div class="edit-actions">
+                          <button class="btn btn-primary btn-sm" onclick="saveEdit('${e.id}', false)">Save changes</button>
+                          <button class="btn btn-sm" onclick="toggleEdit('${e.id}', false)">Cancel</button>
+                        </div>
+                      </div>
+                    </div>`;
+                }).join('')
+            }
+          </td>
+        </tr>`;
+    }).join('');
+
+    return `
+      <div class="week-block">
+        <p class="week-heading">W/C ${fmtDate(wc)}</p>
+        <table class="week-table">
+          <thead>
+            <tr>
+              <th style="width:100px;">Day</th>
+              <th>W/O Number &nbsp;·&nbsp; Description &nbsp;·&nbsp; Comments</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }).join('');
 }
 
 function groupByDate(arr) {
@@ -700,17 +803,22 @@ function renderEntryRow(e, isOffice) {
 
 function toggleEdit(id, isOffice) {
   const el = document.getElementById(`edit-${isOffice ? 'o' : 'w'}-${id}`);
-  el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
 }
 
 async function saveEdit(id, isOffice) {
   const p = isOffice ? 'o' : 'w';
   const entry = entries.find(e => e.id === id);
   if (!entry) return;
-  const newJob = document.getElementById(`ej-${p}-${id}`).value;
-  const newHours = parseFloat(document.getElementById(`eh-${p}-${id}`).value);
-  const newComments = document.getElementById(`en-${p}-${id}`).value;
-  const reason = document.getElementById(`er-${p}-${id}`).value;
+  const jobEl = document.getElementById(`ej-${p}-${id}`);
+  const hoursEl = document.getElementById(`eh-${p}-${id}`);
+  const commentsEl = document.getElementById(`en-${p}-${id}`);
+  const reasonEl = document.getElementById(`er-${p}-${id}`);
+  if (!jobEl || !hoursEl) return;
+  const newJob = jobEl.value;
+  const newHours = parseFloat(hoursEl.value);
+  const newComments = commentsEl ? commentsEl.value : '';
+  const reason = reasonEl ? reasonEl.value : '';
   if (isNaN(newHours)) { alert('Please enter valid hours.'); return; }
 
   const amendment = {
@@ -798,7 +906,6 @@ function renderOfficeDashboard() {
       <p class="text-muted" style="margin-top:2px;">${j.property}${j.description ? ' — ' + j.description : ''}</p>
     </div>`).join('') : '<p class="text-muted">No jobs loaded yet.</p>';
 
-renderWorkersList();
   const el = document.getElementById('office-entries-list');
   if (!entries.length) { el.innerHTML = '<p class="text-muted">No entries yet.</p>'; return; }
   const grouped = groupByDate(entries);
@@ -810,6 +917,7 @@ renderWorkersList();
         ${grouped[date].map(e => renderEntryRow(e, true)).join('')}
       </div>
     </div>`).join('');
+  renderWorkersList();
 }
 
 async function markComplete(id) {
