@@ -61,12 +61,12 @@ textarea { height: 60px; resize: none; }
 /* ── Timesheet week view ── */
 .week-block { margin-bottom: 1.5rem; }
 .week-heading { font-size: 12px; font-weight: 600; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-.week-table { width: 100%; border-collapse: collapse; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; table-layout: fixed; }
+.week-table { width: 100%; border-collapse: collapse; background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; }
 .week-table th { font-size: 11px; font-weight: 600; color: var(--color-text-secondary); text-align: left; padding: 8px 12px; background: var(--color-background-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); }
 .week-table td { font-size: 12px; padding: 0; vertical-align: top; }
 .day-row { border-bottom: 0.5px solid var(--color-border-tertiary); }
 .day-row:last-child { border-bottom: none; }
-.day-cell { padding: 10px 12px; width: 100px; min-width: 90px; border-right: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); }
+.day-cell { padding: 10px 12px; width: 100px; min-width: 90px; border-right: 0.5px solid var(--color-border-tertiary); background: var(--color-background-secondary); position: relative; }
 .day-name { font-size: 12px; font-weight: 600; color: var(--color-text-primary); }
 .day-date { font-size: 11px; color: var(--color-text-secondary); margin-top: 1px; }
 .day-entries { padding: 0; flex: 1; }
@@ -86,7 +86,7 @@ textarea { height: 60px; resize: none; }
 .day-flag:hover { text-decoration: underline; }
 .day-absence { font-size: 11px; color: var(--color-text-info); margin-top: 3px; cursor: pointer; }
 .day-absence:hover { text-decoration: underline; }
-.absence-picker { background: var(--color-background-primary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 10px; margin-top: 6px; display: none; }
+.absence-picker { background: var(--color-background-primary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 10px; margin-top: 6px; display: none; position: absolute; z-index: 10; min-width: 180px; }
 .absence-picker select { margin-bottom: 8px; font-size: 12px; padding: 5px 8px; }
 .absence-picker-actions { display: flex; gap: 6px; }
 .entry-display { display: flex; justify-content: space-between; align-items: center; }
@@ -828,25 +828,25 @@ function renderWeek(wc) {
           <div class="day-date">${fmtShortDate(dayStr)}</div>
           ${dayCellContent}
         </td>` : ''}
-        <td style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;vertical-align:top;">
+        <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;vertical-align:top;width:110px;">
           <div style="font-weight:600;">${e.jobId}</div>
           ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
           ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
         </td>
-        <td style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;">
+        <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;width:130px;">
           ${job ? job.property : ''}
         </td>
-        <td style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;">
+        <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;">
           ${job ? job.description : ''}
         </td>
-        <td style="padding:9px 8px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:500;text-align:right;vertical-align:top;white-space:nowrap;">
+        <td style="padding:9px 6px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:500;text-align:center;vertical-align:top;white-space:nowrap;width:46px;">
           ${e.hours}h
         </td>
-        <td style="padding:9px 12px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-style:italic;color:var(--color-text-secondary);vertical-align:top;">
+        <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-style:italic;color:var(--color-text-secondary);vertical-align:top;">
           ${e.comments || ''}
           ${amended ? `<div class="audit-log-sm" style="font-style:normal;">Amended by ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
         </td>
-        <td style="padding:6px 8px;text-align:center;vertical-align:top;">
+        <td style="padding:6px 8px;text-align:center;vertical-align:top;width:60px;">
           <button class="btn btn-sm" onclick="toggleEditWeek('${e.id}')">Edit</button>
         </td>
       </tr>
@@ -895,8 +895,8 @@ function renderWeek(wc) {
             <th style="width:110px;">W/O Number</th>
             <th style="width:130px;">Property</th>
             <th>Description</th>
-            <th style="width:50px;text-align:right;">Hrs</th>
-            <th style="width:120px;">Comments</th>
+            <th style="width:46px;text-align:center;">Hrs</th>
+            <th>Comments</th>
             <th style="width:60px;"></th>
           </tr>
         </thead>
