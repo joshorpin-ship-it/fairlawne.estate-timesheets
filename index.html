@@ -82,6 +82,13 @@ textarea { height: 60px; resize: none; }
 .day-weekend { background: var(--color-background-secondary); opacity: 0.6; }
 .badge-amended-sm { font-size: 10px; padding: 1px 5px; border-radius: 10px; background: var(--color-background-warning); color: var(--color-text-warning); margin-left: 4px; font-weight: 500; }
 .audit-log-sm { font-size: 10px; color: var(--color-text-secondary); font-style: italic; margin-top: 2px; }
+.day-flag { font-size: 11px; color: #c0392b; margin-top: 3px; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
+.day-flag:hover { text-decoration: underline; }
+.day-absence { font-size: 11px; color: var(--color-text-info); margin-top: 3px; cursor: pointer; }
+.day-absence:hover { text-decoration: underline; }
+.absence-picker { background: var(--color-background-primary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 10px; margin-top: 6px; display: none; }
+.absence-picker select { margin-bottom: 8px; font-size: 12px; padding: 5px 8px; }
+.absence-picker-actions { display: flex; gap: 6px; }
 .entry-display { display: flex; justify-content: space-between; align-items: center; }
 .entry-info { flex: 1; }
 .entry-job { font-size: 13px; font-weight: 500; }
@@ -283,6 +290,38 @@ textarea { height: 60px; resize: none; }
 
       <div class="card">
         <div class="row-between card-header">
+          <p class="section-heading">Absences</p>
+        </div>
+        <div id="office-absences-list"><p class="text-muted">Loading...</p></div>
+        <div style="margin-top:1rem;padding-top:1rem;border-top:0.5px solid var(--color-border-tertiary);">
+          <p style="font-size:13px;font-weight:500;margin-bottom:0.75rem;">Add absence</p>
+          <div class="grid2">
+            <div>
+              <label style="margin-top:0;">Worker</label>
+              <select id="absence-worker-select"><option value="">Select worker...</option></select>
+            </div>
+            <div>
+              <label style="margin-top:0;">Date</label>
+              <input type="date" id="absence-date-input">
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <label style="margin-top:0;">Reason</label>
+            <select id="absence-reason-select">
+              <option value="Sick">Sick</option>
+              <option value="Annual Leave">Annual Leave</option>
+              <option value="Bank Holiday">Bank Holiday</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-footer">
+            <button class="btn btn-primary" onclick="officeAddAbsence()">Add absence</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row-between card-header">
           <p class="section-heading">Workers</p>
         </div>
         <div id="workers-list"><p class="text-muted">Loading...</p></div>
@@ -320,6 +359,7 @@ const POLL_INTERVAL_MS = 60000; // how often worker view auto-refreshes jobs (ms
 let jobs = [];
 let entries = [];
 let workers = [];
+let absences = [];
 let currentWorker = null;
 let syncQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
 let pollTimer = null;
@@ -386,8 +426,10 @@ function loadInitialData() {
     syncQueue.forEach(q => {
       if (!entries.find(e => e.id === q.id)) entries.push(q);
     });
+    absences = (data.absences || []).map(a => ({ ...a, date: String(a.date || '') }));
     localStorage.setItem('entries', JSON.stringify(entries));
     localStorage.setItem('workers', JSON.stringify(workers));
+    localStorage.setItem('absences', JSON.stringify(absences));
     populateWorkerDropdown();
     setSyncStatus('login', 'synced', 'Connected to Google Sheets');
     updateHoursPlaceholder();
@@ -398,6 +440,7 @@ function loadInitialData() {
     jobs = JSON.parse(localStorage.getItem('jobs') || '[]');
     entries = JSON.parse(localStorage.getItem('entries') || '[]');
     workers = JSON.parse(localStorage.getItem('workers') || '[]');
+    absences = JSON.parse(localStorage.getItem('absences') || '[]');
     populateWorkerDropdown();
   });
 }
@@ -503,9 +546,11 @@ async function pollJobs() {
       amendments: amendmentsFromString(typeof e.amendments === 'string' ? e.amendments : JSON.stringify(e.amendments || []))
     }));
     syncQueue.forEach(q => { if (q.payload?.entry && !entries.find(e => e.id === q.payload.entry.id)) entries.push(q.payload.entry); });
+    absences = (data.absences || absences).map(a => ({ ...a, date: String(a.date || '') }));
     localStorage.setItem('jobs', JSON.stringify(jobs));
     localStorage.setItem('entries', JSON.stringify(entries));
     localStorage.setItem('workers', JSON.stringify(workers));
+    localStorage.setItem('absences', JSON.stringify(absences));
     populateJobDropdown();
     renderEntriesByDate();
     updateHoursPlaceholder();
@@ -694,24 +739,43 @@ function renderWeek(wc) {
     byDay[norm].push(e);
   });
 
+  const today = new Date(); today.setHours(0,0,0,0);
+  const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
   const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   const weekDays = Array.from({length: 5}, (_, i) => {
     const parts = wc.split('-');
     const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) + i);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + dd;
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   });
 
   const rows = weekDays.map((dayStr, i) => {
     const dayEntries = byDay[dayStr] || [];
     const isEmpty = dayEntries.length === 0;
+    const dayDate = new Date(dayStr + 'T00:00:00');
+    const isPast = dayDate < today;
+    const inFlagRange = isPast && dayDate >= prevMonthStart;
+    const hoursLogged = dayEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0);
+    const absence = absences.find(a => a.worker === currentWorker && normaliseDate(a.date) === dayStr);
+    const isBankHoliday = BANK_HOLIDAYS.includes(dayStr);
+    const shouldFlag = inFlagRange && !isBankHoliday && !absence && hoursLogged < 8;
+
+    const dayCellExtra = isBankHoliday
+      ? `<div class="day-absence">Bank Holiday</div>`
+      : absence
+        ? `<div class="day-absence" onclick="toggleAbsencePicker('${dayStr}')">${absence.reason}</div>
+           <div class="absence-picker" id="ap-${dayStr}">${absencePickerHTML(dayStr, absence.reason)}</div>`
+        : shouldFlag
+          ? `<div class="day-flag" onclick="toggleAbsencePicker('${dayStr}')">⚠ ${hoursLogged > 0 ? hoursLogged + 'h logged' : 'No hours'}</div>
+             <div class="absence-picker" id="ap-${dayStr}">${absencePickerHTML(dayStr, '')}</div>`
+          : '';
+
     return `
       <tr class="day-row">
         <td class="day-cell">
           <div class="day-name">${dayNames[i]}</div>
           <div class="day-date">${fmtShortDate(dayStr)}</div>
+          ${dayCellExtra}
         </td>
         ${isEmpty
           ? `<td class="day-empty" colspan="4" style="padding:10px 12px;font-size:12px;color:var(--color-text-secondary);">—</td>`
@@ -793,6 +857,95 @@ function renderWeek(wc) {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+}
+
+// ── Bank Holidays (England & Wales 2026-2027) ─────────────────────
+const BANK_HOLIDAYS = [
+  '2026-01-01','2026-04-03','2026-04-06','2026-05-04','2026-05-25',
+  '2026-08-31','2026-12-25','2026-12-28',
+  '2027-01-01','2027-03-26','2027-03-29','2027-05-03','2027-05-31',
+  '2027-08-30','2027-12-27','2027-12-28'
+];
+
+function absencePickerHTML(dateStr, current) {
+  const opts = ['Sick','Annual Leave','Bank Holiday','Other'];
+  return `
+    <select id="asel-${dateStr}" style="margin-bottom:6px;font-size:12px;padding:5px 8px;width:100%;">
+      ${opts.map(o => `<option value="${o}" ${o===current?'selected':''}>${o}</option>`).join('')}
+    </select>
+    <div class="absence-picker-actions">
+      <button class="btn btn-primary btn-sm" onclick="saveAbsence('${dateStr}')">Save</button>
+      ${current ? `<button class="btn btn-sm" onclick="removeAbsence('${dateStr}')">Remove</button>` : ''}
+      <button class="btn btn-sm" onclick="toggleAbsencePicker('${dateStr}')">Cancel</button>
+    </div>`;
+}
+
+function toggleAbsencePicker(dateStr) {
+  const el = document.getElementById('ap-' + dateStr);
+  if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
+}
+
+async function saveAbsence(dateStr) {
+  const sel = document.getElementById('asel-' + dateStr);
+  if (!sel) return;
+  const reason = sel.value;
+  const worker = currentWorker;
+  if (!worker) return;
+  absences = absences.filter(a => !(a.worker === worker && normaliseDate(a.date) === dateStr));
+  absences.push({ worker, date: dateStr, reason });
+  localStorage.setItem('absences', JSON.stringify(absences));
+  renderEntriesByDate();
+  await queueOrSend('saveAbsence', { absence: { worker, date: dateStr, reason } });
+}
+
+async function removeAbsence(dateStr) {
+  const worker = currentWorker;
+  if (!worker) return;
+  absences = absences.filter(a => !(a.worker === worker && normaliseDate(a.date) === dateStr));
+  localStorage.setItem('absences', JSON.stringify(absences));
+  renderEntriesByDate();
+  await queueOrSend('removeAbsence', { worker, date: dateStr });
+}
+
+function renderOfficeAbsences() {
+  const el = document.getElementById('office-absences-list');
+  if (!el) return;
+  if (!absences.length) { el.innerHTML = '<p class="text-muted">No absences recorded.</p>'; return; }
+  const sorted = [...absences].sort((a, b) => b.date.localeCompare(a.date));
+  el.innerHTML = sorted.map(a => `
+    <div class="entry-row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div>
+        <span style="font-size:13px;font-weight:500;">${a.worker}</span>
+        <span class="text-muted" style="margin-left:8px;font-size:12px;">${fmtDate(a.date)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;">${a.reason}</span>
+        <button class="btn btn-sm" onclick="officeRemoveAbsence('${a.worker}','${a.date}')">Remove</button>
+      </div>
+    </div>`).join('');
+}
+
+async function officeAddAbsence() {
+  const worker = document.getElementById('absence-worker-select').value;
+  const date = document.getElementById('absence-date-input').value;
+  const reason = document.getElementById('absence-reason-select').value;
+  if (!worker || !date) { alert('Please select a worker and date.'); return; }
+  const norm = normaliseDate(date);
+  absences = absences.filter(a => !(a.worker === worker && normaliseDate(a.date) === norm));
+  absences.push({ worker, date: norm, reason });
+  localStorage.setItem('absences', JSON.stringify(absences));
+  document.getElementById('absence-date-input').value = '';
+  renderOfficeAbsences();
+  await queueOrSend('saveAbsence', { absence: { worker, date: norm, reason } });
+  setSyncStatus('office', 'synced', 'Absence saved');
+}
+
+async function officeRemoveAbsence(worker, date) {
+  absences = absences.filter(a => !(a.worker === worker && normaliseDate(a.date) === date));
+  localStorage.setItem('absences', JSON.stringify(absences));
+  renderOfficeAbsences();
+  await queueOrSend('removeAbsence', { worker, date });
+  setSyncStatus('office', 'synced', 'Absence removed');
 }
 
 function renderEntriesByDate() {
@@ -928,9 +1081,11 @@ async function refreshOffice() {
         comments: String(e.comments || ''),
         amendments: amendmentsFromString(typeof e.amendments === 'string' ? e.amendments : JSON.stringify(e.amendments || []))
       }));
+      absences = (data.absences || []).map(a => ({ ...a, date: String(a.date || '') }));
       localStorage.setItem('jobs', JSON.stringify(jobs));
       localStorage.setItem('entries', JSON.stringify(entries));
       localStorage.setItem('workers', JSON.stringify(workers));
+      localStorage.setItem('absences', JSON.stringify(absences));
       setSyncStatus('office', 'synced', 'Live from Google Sheets');
     } catch (e) {
       setSyncStatus('office', 'error', 'Using cached data');
@@ -939,6 +1094,7 @@ async function refreshOffice() {
     jobs = JSON.parse(localStorage.getItem('jobs') || '[]');
     entries = JSON.parse(localStorage.getItem('entries') || '[]');
     workers = JSON.parse(localStorage.getItem('workers') || '[]');
+    absences = JSON.parse(localStorage.getItem('absences') || '[]');
     setSyncStatus('office', 'error', 'Offline — cached data');
   }
   renderOfficeDashboard();
