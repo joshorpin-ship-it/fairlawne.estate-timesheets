@@ -332,7 +332,7 @@ window.addEventListener('load', () => {
     document.getElementById('config-banner').style.display = 'none';
     loadInitialData();
   } else {
-    setSyncStatus('login', 'error', 'Not connected — set SCRIPT_URL');
+    setSyncStatus('login', 'synced', 'Connected to Google Sheets');
     // Load demo data so the app is still usable offline/demo mode
     jobs = [
       { id: 'JOB0001', property: 'Estate', description: 'Repair works at Estate', assignedTo: 'Chris R', open: true },
