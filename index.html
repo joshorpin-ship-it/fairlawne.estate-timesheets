@@ -813,7 +813,7 @@ function renderWeek(wc) {
         </td>
         ${isEmpty
           ? `<td class="day-empty" colspan="5" style="padding:10px 12px;font-size:12px;color:var(--color-text-secondary);">—</td>`
-          : `<td colspan="4" style="padding:0;">` + dayEntries.map(e => {
+          : `<td colspan="5" style="padding:0;">` + dayEntries.map(e => {
               const job = jobs.find(j => j.id === e.jobId);
               const amended = e.amendments && e.amendments.length > 0;
               const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
@@ -887,7 +887,7 @@ function renderWeek(wc) {
             <th style="width:110px;">W/O Number</th>
             <th style="width:130px;">Property</th>
             <th>Description</th>
-            <th style="width:40px;text-align:right;">Hrs</th>
+            <th style="width:50px;text-align:right;">Hrs</th>
             <th>Comments</th>
             <th style="width:60px;"></th>
           </tr>
