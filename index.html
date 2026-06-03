@@ -117,6 +117,9 @@ textarea { height: 60px; resize: none; }
 .section-label { font-size: 13px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 0.25rem; }
 .stat-label { font-size: 13px; }
 .card-header { margin-bottom: 1rem; }
+.office-subnav { display: flex; gap: 8px; margin-bottom: 1.5rem; border-bottom: 0.5px solid var(--color-border-tertiary); padding-bottom: 1rem; }
+.office-subnav button { font-size: 13px; padding: 6px 16px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); cursor: pointer; font-weight: 500; }
+.office-subnav button.active { background: var(--color-background-secondary); color: var(--color-text-primary); border-color: var(--color-border-primary); }
 .job-detail { display: none; margin-top: 12px; padding: 10px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); }
 .app { padding: 0 1rem 2rem; max-width: 980px; margin: 0 auto; }
 .sync-status { font-size: 12px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px; margin-top: 8px; }
@@ -259,35 +262,60 @@ textarea { height: 60px; resize: none; }
         </div>
       </div>
 
-      <div class="grid2 form-section">
-        <div class="stat">
-          <p class="text-muted stat-label">Open jobs</p>
-          <p class="stat-val" id="stat-open">—</p>
-        </div>
-        <div class="stat">
-          <p class="text-muted stat-label">Total entries</p>
-          <p class="stat-val" id="stat-entries">—</p>
-        </div>
+      <!-- Office sub-navigation -->
+      <div class="office-subnav">
+        <button class="active" onclick="switchOfficeTab('jobs')" id="otab-jobs">Active Jobs</button>
+        <button onclick="switchOfficeTab('entries')" id="otab-entries">Time Entries</button>
+        <button onclick="switchOfficeTab('completed')" id="otab-completed">Completed Jobs</button>
+        <button onclick="switchOfficeTab('absences')" id="otab-absences">Absences</button>
+        <button onclick="switchOfficeTab('workers')" id="otab-workers">Workers</button>
       </div>
 
-      <div class="card">
-        <div class="row-between card-header">
-          <p class="section-heading">Active jobs</p>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-sm" onclick="refreshOffice()">↻ Refresh</button>
+      <!-- Active Jobs tab -->
+      <div id="office-tab-jobs">
+        <div class="grid2 form-section">
+          <div class="stat">
+            <p class="text-muted stat-label">Open jobs</p>
+            <p class="stat-val" id="stat-open">—</p>
+          </div>
+          <div class="stat">
+            <p class="text-muted stat-label">Total entries</p>
+            <p class="stat-val" id="stat-entries">—</p>
           </div>
         </div>
-        <div id="job-list"><p class="text-muted">Loading...</p></div>
-      </div>
-
-      <div class="card">
-        <div class="row-between card-header">
-          <p class="section-heading">Time entries &amp; audit trail</p>
-          <button class="btn btn-primary btn-sm" onclick="exportCSV()">↓ Export CSV</button>
+        <div class="card">
+          <div class="row-between card-header">
+            <p class="section-heading">Active jobs</p>
+            <button class="btn btn-sm" onclick="refreshOffice()">↻ Refresh</button>
+          </div>
+          <div id="job-list"><p class="text-muted">Loading...</p></div>
         </div>
-        <div id="office-entries-list"><p class="text-muted">Loading...</p></div>
       </div>
 
+      <!-- Time Entries tab -->
+      <div id="office-tab-entries" style="display:none;">
+        <div class="card">
+          <div class="row-between card-header">
+            <p class="section-heading">Time entries &amp; audit trail</p>
+            <button class="btn btn-primary btn-sm" onclick="exportCSV()">↓ Export CSV</button>
+          </div>
+          <div id="office-entries-list"><p class="text-muted">Loading...</p></div>
+        </div>
+      </div>
+
+      <!-- Completed Jobs tab -->
+      <div id="office-tab-completed" style="display:none;">
+        <div class="card">
+          <div class="row-between card-header">
+            <p class="section-heading">Completed jobs</p>
+            <button class="btn btn-sm" onclick="loadCompletedJobs()">↻ Load completed jobs</button>
+          </div>
+          <div id="completed-job-list"><p class="text-muted">Click "Load completed jobs" to view.</p></div>
+        </div>
+      </div>
+
+      <!-- Absences tab -->
+      <div id="office-tab-absences" style="display:none;">
       <div class="card">
         <div class="row-between card-header">
           <p class="section-heading">Absences</p>
@@ -320,6 +348,10 @@ textarea { height: 60px; resize: none; }
         </div>
       </div>
 
+      </div><!-- end absences tab -->
+
+      <!-- Workers tab -->
+      <div id="office-tab-workers" style="display:none;">
       <div class="card">
         <div class="row-between card-header">
           <p class="section-heading">Workers</p>
@@ -342,6 +374,8 @@ textarea { height: 60px; resize: none; }
           </div>
         </div>
       </div>
+      </div><!-- end workers card -->
+      </div><!-- end workers tab -->
     </div>
   </div>
 
@@ -1100,22 +1134,30 @@ async function refreshOffice() {
   renderOfficeDashboard();
 }
 
-function renderOfficeDashboard() {
-  document.getElementById('stat-open').textContent = jobs.filter(j => j.open).length;
-  document.getElementById('stat-entries').textContent = entries.length;
-
-  document.getElementById('job-list').innerHTML = jobs.length ? jobs.map(j => `
+function renderJobRow(j, showReopen) {
+  return `
     <div class="entry-row">
       <div class="row-between">
         <div>
           <span style="font-size:13px;font-weight:500;">${j.id}</span>
-          <span class="badge ${j.open ? 'badge-open' : 'badge-done'}" style="margin-left:8px;">${j.open ? 'Open' : 'Complete'}</span>
-          ${j.assignedTo ? `<span class="text-muted" style="font-size:12px;margin-left:8px;">${j.assignedTo}</span>` : ''}
+          <span class="text-muted" style="font-size:12px;margin-left:8px;">${j.property}</span>
+          ${j.assignedTo ? `<span class="text-muted" style="font-size:12px;margin-left:8px;">· ${j.assignedTo}</span>` : ''}
         </div>
-        ${j.open ? `<button class="btn btn-sm" onclick="markComplete('${j.id}')">✓ Mark complete</button>` : ''}
+        ${j.open && !showReopen ? `<button class="btn btn-sm" onclick="markComplete('${j.id}')">✓ Mark complete</button>` : ''}
+        ${showReopen ? `<button class="btn btn-sm" onclick="reopenJob('${j.id}')">↩ Reopen</button>` : ''}
       </div>
-      <p class="text-muted" style="margin-top:2px;">${j.property}${j.description ? ' — ' + j.description : ''}</p>
-    </div>`).join('') : '<p class="text-muted">No jobs loaded yet.</p>';
+      <p class="text-muted" style="margin-top:2px;font-size:12px;">${j.description || ''}</p>
+    </div>`;
+}
+
+function renderOfficeDashboard() {
+  document.getElementById('stat-open').textContent = jobs.filter(j => j.open).length;
+  document.getElementById('stat-entries').textContent = entries.length;
+
+  const openJobs = jobs.filter(j => j.open);
+  document.getElementById('job-list').innerHTML = openJobs.length
+    ? openJobs.map(j => renderJobRow(j, false)).join('')
+    : '<p class="text-muted">No open jobs.</p>';
 
   renderWorkersList();
   renderOfficeAbsences();
@@ -1135,6 +1177,44 @@ function renderOfficeDashboard() {
         ${grouped[date].map(e => renderEntryRow(e, true)).join('')}
       </div>
     </div>`).join('');
+}
+
+function switchOfficeTab(tab) {
+  const tabs = ['jobs','entries','completed','absences','workers'];
+  tabs.forEach(t => {
+    const el = document.getElementById('office-tab-' + t);
+    const btn = document.getElementById('otab-' + t);
+    if (el) el.style.display = t === tab ? 'block' : 'none';
+    if (btn) btn.classList.toggle('active', t === tab);
+  });
+}
+
+async function loadCompletedJobs() {
+  const el = document.getElementById('completed-job-list');
+  el.innerHTML = '<p class="text-muted">Loading...</p>';
+  // Refresh from Sheets to get latest
+  if (SCRIPT_URL && navigator.onLine) {
+    try {
+      const data = await api('getData');
+      jobs = data.jobs || [];
+      localStorage.setItem('jobs', JSON.stringify(jobs));
+    } catch(e) {}
+  }
+  const completed = jobs.filter(j => !j.open);
+  el.innerHTML = completed.length
+    ? completed.map(j => renderJobRow(j, true)).join('')
+    : '<p class="text-muted">No completed jobs.</p>';
+}
+
+async function reopenJob(id) {
+  const j = jobs.find(j => j.id === id);
+  if (!j) return;
+  j.open = true;
+  localStorage.setItem('jobs', JSON.stringify(jobs));
+  loadCompletedJobs();
+  renderOfficeDashboard();
+  await queueOrSend('reopenJob', { jobId: id });
+  setSyncStatus('office', 'synced', 'Job reopened');
 }
 
 async function markComplete(id) {
