@@ -264,15 +264,15 @@ textarea { height: 60px; resize: none; }
 
       <!-- Office sub-navigation -->
       <div class="office-subnav">
-        <button class="active" onclick="switchOfficeTab('jobs')" id="otab-jobs">Active Jobs</button>
-        <button onclick="switchOfficeTab('entries')" id="otab-entries">Time Entries</button>
+        <button class="active" onclick="switchOfficeTab('entries')" id="otab-entries">Time Entries</button>
+        <button onclick="switchOfficeTab('jobs')" id="otab-jobs">Active Jobs</button>
         <button onclick="switchOfficeTab('completed')" id="otab-completed">Completed Jobs</button>
-        <button onclick="switchOfficeTab('absences')" id="otab-absences">Absences</button>
         <button onclick="switchOfficeTab('workers')" id="otab-workers">Workers</button>
+        <button onclick="switchOfficeTab('absences')" id="otab-absences">Absences</button>
       </div>
 
       <!-- Active Jobs tab -->
-      <div id="office-tab-jobs">
+      <div id="office-tab-jobs" style="display:none;">
         <div class="grid2 form-section">
           <div class="stat">
             <p class="text-muted stat-label">Open jobs</p>
@@ -293,7 +293,7 @@ textarea { height: 60px; resize: none; }
       </div>
 
       <!-- Time Entries tab -->
-      <div id="office-tab-entries" style="display:none;">
+      <div id="office-tab-entries">
         <div class="card">
           <div class="row-between card-header">
             <p class="section-heading">Time entries &amp; audit trail</p>
