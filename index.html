@@ -203,7 +203,7 @@ textarea { height: 60px; resize: none; }
         <div class="grid2">
           <div>
             <label>Date</label>
-            <input type="date" id="entry-date">
+            <input type="date" id="entry-date" onchange="renderEntriesByDate()">
           </div>
           <div>
             <label>Hours</label>
@@ -631,117 +631,113 @@ function fmtShortDate(dateStr) {
   return dt.getDate() + ' ' + months[dt.getMonth()];
 }
 
-function renderEntriesByDate() {
-  const container = document.getElementById('entries-by-date');
+function renderWeek(wc) {
   const mine = entries.filter(e => e.worker === currentWorker);
-  if (!mine.length) { container.innerHTML = '<p class="text-muted" style="padding:0.5rem 0;">No entries yet.</p>'; return; }
-
-  // Group by week commencing (Monday)
-  const byWeek = {};
+  const byDay = {};
   mine.forEach(e => {
     const norm = normaliseDate(e.date);
-    const wc = getWeekCommencing(norm);
-    if (!byWeek[wc]) byWeek[wc] = {};
-    if (!byWeek[wc][norm]) byWeek[wc][norm] = [];
-    byWeek[wc][norm].push(e);
+    if (!byDay[norm]) byDay[norm] = [];
+    byDay[norm].push(e);
   });
 
-  const sortedWeeks = Object.keys(byWeek).sort((a, b) => b.localeCompare(a));
   const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const weekDays = Array.from({length: 5}, (_, i) => {
+    const d = new Date(wc + 'T00:00:00');
+    d.setDate(d.getDate() + i);
+    return d.toISOString().slice(0, 10);
+  });
 
-  container.innerHTML = sortedWeeks.map(wc => {
-    const weekDays = Array.from({length: 5}, (_, i) => {
-      const d = new Date(wc + 'T00:00:00');
-      d.setDate(d.getDate() + i);
-      return d.toISOString().slice(0, 10);
-    });
-
-    const rows = weekDays.map((dayStr, i) => {
-      const dayEntries = byWeek[wc][dayStr] || [];
-      const isEmpty = dayEntries.length === 0;
-      return `
-        <tr class="day-row">
-          <td class="day-cell">
-            <div class="day-name">${dayNames[i]}</div>
-            <div class="day-date">${fmtShortDate(dayStr)}</div>
-          </td>
-          <td class="day-entries">
-            ${isEmpty
-              ? `<div class="day-empty">—</div>`
-              : dayEntries.map(e => {
-                  const job = jobs.find(j => j.id === e.jobId);
-                  const amended = e.amendments && e.amendments.length > 0;
-                  const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
-                  const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
-                  return `
-                    <div class="day-entry" id="row-w-${e.id}">
-                      <div class="day-entry-info">
-                        <div class="day-entry-main">
-                          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-                            <span class="day-entry-job">${e.jobId}</span>
-                            ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
-                            ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
-                          </div>
-                          <div class="day-entry-desc">${job ? job.property : ''}</div>
-                          ${e.comments ? `<div class="day-entry-comments">${e.comments}</div>` : ''}
-                          ${amended ? `<div class="audit-log-sm">Amended by ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
-                        </div>
-                        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-                          <span class="day-entry-hours">${e.hours}h</span>
-                          <button class="btn btn-sm" onclick="toggleEdit('${e.id}', false)">Edit</button>
-                        </div>
-                      </div>
-                      <div class="entry-edit" id="edit-w-${e.id}">
-                        <div class="edit-grid">
-                          <div class="edit-field">
-                            <label>Job</label>
-                            <select id="ej-w-${e.id}">
-                              ${jobs.filter(j => j.open || j.id === e.jobId).map(j =>
-                                `<option value="${j.id}" ${j.id === e.jobId ? 'selected' : ''}>${j.id} — ${j.property}</option>`
-                              ).join('')}
-                            </select>
-                          </div>
-                          <div class="edit-field">
-                            <label>Hours</label>
-                            <input type="number" id="eh-w-${e.id}" value="${e.hours}" min="0.5" max="16" step="0.5">
-                          </div>
-                        </div>
-                        <div class="edit-comments">
-                          <label>Comments</label>
-                          <textarea id="en-w-${e.id}">${e.comments || ''}</textarea>
-                        </div>
-                        <div class="edit-comments">
-                          <label>Reason for amendment</label>
-                          <input type="text" id="er-w-${e.id}" placeholder="e.g. Entered wrong hours">
-                        </div>
-                        <div class="edit-actions">
-                          <button class="btn btn-primary btn-sm" onclick="saveEdit('${e.id}', false)">Save changes</button>
-                          <button class="btn btn-sm" onclick="toggleEdit('${e.id}', false)">Cancel</button>
-                        </div>
-                      </div>
-                    </div>`;
-                }).join('')
-            }
-          </td>
-        </tr>`;
-    }).join('');
-
+  const rows = weekDays.map((dayStr, i) => {
+    const dayEntries = byDay[dayStr] || [];
+    const isEmpty = dayEntries.length === 0;
     return `
-      <div class="week-block">
-        <p class="week-heading">W/C ${fmtDate(wc)}</p>
-        <table class="week-table">
-          <thead>
-            <tr>
-              <th style="width:100px;">Day</th>
-              <th>W/O Number &nbsp;·&nbsp; Description &nbsp;·&nbsp; Comments</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
+      <tr class="day-row">
+        <td class="day-cell">
+          <div class="day-name">${dayNames[i]}</div>
+          <div class="day-date">${fmtShortDate(dayStr)}</div>
+        </td>
+        <td class="day-entries">
+          ${isEmpty
+            ? `<div class="day-empty">—</div>`
+            : dayEntries.map(e => {
+                const job = jobs.find(j => j.id === e.jobId);
+                const amended = e.amendments && e.amendments.length > 0;
+                const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
+                const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
+                return `
+                  <div class="day-entry" id="row-w-${e.id}">
+                    <div class="day-entry-info">
+                      <div class="day-entry-main">
+                        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+                          <span class="day-entry-job">${e.jobId}</span>
+                          ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
+                          ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
+                        </div>
+                        <div class="day-entry-desc">${job ? job.property : ''}</div>
+                        ${e.comments ? `<div class="day-entry-comments">${e.comments}</div>` : ''}
+                        ${amended ? `<div class="audit-log-sm">Amended by ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
+                      </div>
+                      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+                        <span class="day-entry-hours">${e.hours}h</span>
+                        <button class="btn btn-sm" onclick="toggleEdit('${e.id}', false)">Edit</button>
+                      </div>
+                    </div>
+                    <div class="entry-edit" id="edit-w-${e.id}">
+                      <div class="edit-grid">
+                        <div class="edit-field">
+                          <label>Job</label>
+                          <select id="ej-w-${e.id}">
+                            ${jobs.filter(j => j.open || j.id === e.jobId).map(j =>
+                              `<option value="${j.id}" ${j.id === e.jobId ? 'selected' : ''}>${j.id} — ${j.property}</option>`
+                            ).join('')}
+                          </select>
+                        </div>
+                        <div class="edit-field">
+                          <label>Hours</label>
+                          <input type="number" id="eh-w-${e.id}" value="${e.hours}" min="0.5" max="16" step="0.5">
+                        </div>
+                      </div>
+                      <div class="edit-comments">
+                        <label>Comments</label>
+                        <textarea id="en-w-${e.id}">${e.comments || ''}</textarea>
+                      </div>
+                      <div class="edit-comments">
+                        <label>Reason for amendment</label>
+                        <input type="text" id="er-w-${e.id}" placeholder="e.g. Entered wrong hours">
+                      </div>
+                      <div class="edit-actions">
+                        <button class="btn btn-primary btn-sm" onclick="saveEdit('${e.id}', false)">Save changes</button>
+                        <button class="btn btn-sm" onclick="toggleEdit('${e.id}', false)">Cancel</button>
+                      </div>
+                    </div>
+                  </div>`;
+              }).join('')
+          }
+        </td>
+      </tr>`;
   }).join('');
+
+  return `
+    <div class="week-block">
+      <p class="week-heading">W/C ${fmtDate(wc)}</p>
+      <table class="week-table">
+        <thead>
+          <tr>
+            <th style="width:100px;">Day</th>
+            <th>W/O Number &nbsp;·&nbsp; Description &nbsp;·&nbsp; Comments</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
+function renderEntriesByDate() {
+  const container = document.getElementById('entries-by-date');
+  const dateVal = document.getElementById('entry-date') ? document.getElementById('entry-date').value : '';
+  const wc = getWeekCommencing(dateVal || new Date().toISOString().slice(0, 10));
+  container.innerHTML = renderWeek(wc);
+}
 function groupByDate(arr) {
   return arr.reduce((g, e) => {
     const key = normaliseDate(e.date);
@@ -803,22 +799,17 @@ function renderEntryRow(e, isOffice) {
 
 function toggleEdit(id, isOffice) {
   const el = document.getElementById(`edit-${isOffice ? 'o' : 'w'}-${id}`);
-  if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  el.style.display = el.style.display === 'block' ? 'none' : 'block';
 }
 
 async function saveEdit(id, isOffice) {
   const p = isOffice ? 'o' : 'w';
   const entry = entries.find(e => e.id === id);
   if (!entry) return;
-  const jobEl = document.getElementById(`ej-${p}-${id}`);
-  const hoursEl = document.getElementById(`eh-${p}-${id}`);
-  const commentsEl = document.getElementById(`en-${p}-${id}`);
-  const reasonEl = document.getElementById(`er-${p}-${id}`);
-  if (!jobEl || !hoursEl) return;
-  const newJob = jobEl.value;
-  const newHours = parseFloat(hoursEl.value);
-  const newComments = commentsEl ? commentsEl.value : '';
-  const reason = reasonEl ? reasonEl.value : '';
+  const newJob = document.getElementById(`ej-${p}-${id}`).value;
+  const newHours = parseFloat(document.getElementById(`eh-${p}-${id}`).value);
+  const newComments = document.getElementById(`en-${p}-${id}`).value;
+  const reason = document.getElementById(`er-${p}-${id}`).value;
   if (isNaN(newHours)) { alert('Please enter valid hours.'); return; }
 
   const amendment = {
