@@ -299,6 +299,25 @@ textarea { height: 60px; resize: none; }
             <p class="section-heading">Time entries &amp; audit trail</p>
             <button class="btn btn-primary btn-sm" onclick="exportCSV()">↓ Export CSV</button>
           </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;margin-bottom:1rem;">
+            <div>
+              <label style="margin-top:0;">Worker</label>
+              <select id="oe-worker-filter">
+                <option value="">All workers</option>
+              </select>
+            </div>
+            <div>
+              <label style="margin-top:0;">From</label>
+              <input type="date" id="oe-date-from">
+            </div>
+            <div>
+              <label style="margin-top:0;">To</label>
+              <input type="date" id="oe-date-to">
+            </div>
+            <div>
+              <button class="btn btn-primary" onclick="renderOfficeEntries()" style="width:100%;margin-top:0;">Search</button>
+            </div>
+          </div>
           <div id="office-entries-list"><p class="text-muted">Loading...</p></div>
         </div>
       </div>
@@ -1184,17 +1203,218 @@ function renderOfficeDashboard() {
     const active = workers.filter(w => w.active !== false && w.active !== 'FALSE');
     awSel.innerHTML = '<option value="">Select worker...</option>' + active.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
   }
+  // Populate entries worker filter
+  const owSel = document.getElementById('oe-worker-filter');
+  if (owSel) {
+    const active = workers.filter(w => w.active !== false && w.active !== 'FALSE');
+    owSel.innerHTML = '<option value="">All workers</option>' + active.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
+  }
+  // Set default date range: today and previous 4 days
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+  const prev4 = new Date(today); prev4.setDate(today.getDate() - 4);
+  const prev4Str = prev4.toISOString().slice(0,10);
+  const fromEl = document.getElementById('oe-date-from');
+  const toEl = document.getElementById('oe-date-to');
+  if (fromEl && !fromEl.value) fromEl.value = prev4Str;
+  if (toEl && !toEl.value) toEl.value = todayStr;
+  renderOfficeEntries();
+}
+
+function renderOfficeEntries() {
   const el = document.getElementById('office-entries-list');
-  if (!entries.length) { el.innerHTML = '<p class="text-muted">No entries yet.</p>'; return; }
-  const grouped = groupByDate(entries);
-  const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
-  el.innerHTML = sortedDates.map(date => `
-    <div class="date-block">
-      <p class="date-label">${fmtDate(date)}</p>
-      <div class="date-card">
-        ${grouped[date].map(e => renderEntryRow(e, true)).join('')}
-      </div>
-    </div>`).join('');
+  if (!el) return;
+
+  const workerFilter = document.getElementById('oe-worker-filter')?.value || '';
+  const fromVal = document.getElementById('oe-date-from')?.value || '';
+  const toVal = document.getElementById('oe-date-to')?.value || '';
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
+  // Determine date range
+  const fromDate = fromVal ? new Date(fromVal + 'T00:00:00') : (() => { const d = new Date(); d.setDate(d.getDate()-4); return d; })();
+  const toDate = toVal ? new Date(toVal + 'T00:00:00') : new Date();
+
+  // Build list of all calendar days in range (Mon-Fri only)
+  const allDays = [];
+  const cursor = new Date(fromDate);
+  while (cursor <= toDate) {
+    const dow = cursor.getDay();
+    if (dow !== 0 && dow !== 6) {
+      allDays.push(cursor.toISOString().slice(0,10));
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  // Get workers to display
+  const activeWorkers = workers.filter(w => w.active !== false && w.active !== 'FALSE');
+  const displayWorkers = workerFilter ? activeWorkers.filter(w => w.name === workerFilter) : activeWorkers;
+
+  if (!displayWorkers.length) {
+    el.innerHTML = '<p class="text-muted">No workers found.</p>';
+    return;
+  }
+
+  let html = '';
+
+  displayWorkers.forEach(worker => {
+    const workerEntries = entries.filter(e => e.worker === worker.name);
+
+    const workerRows = allDays.map(dayStr => {
+      const dayEntries = workerEntries.filter(e => normaliseDate(e.date) === dayStr);
+      const isEmpty = dayEntries.length === 0;
+      const dayDate = new Date(dayStr + 'T00:00:00');
+      const isPast = dayDate < today;
+      const inFlagRange = isPast && dayDate >= prevMonthStart;
+      const hoursLogged = dayEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0);
+      const absence = absences.find(a => a.worker === worker.name && normaliseDate(a.date) === dayStr);
+      const isBankHoliday = BANK_HOLIDAYS.includes(dayStr);
+      const shouldFlag = inFlagRange && !isBankHoliday && !absence && hoursLogged < 8;
+
+      const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const dayDate2 = new Date(dayStr + 'T00:00:00');
+      const dayName = dayNames[dayDate2.getDay()];
+
+      const dayCellContent = isBankHoliday
+        ? `<div class="day-absence">Bank Holiday</div>`
+        : absence
+          ? `<div class="day-absence">${absence.reason}</div>`
+          : shouldFlag
+            ? `<div class="day-flag">⚠ ${hoursLogged > 0 ? hoursLogged + 'h logged' : 'No hours'}</div>`
+            : '';
+
+      if (isEmpty) {
+        return `
+        <tr class="day-row">
+          <td class="day-cell">
+            <div class="day-name">${dayName}</div>
+            <div class="day-date">${fmtShortDate(dayStr)}</div>
+            ${dayCellContent}
+          </td>
+          <td colspan="6" style="padding:10px 12px;font-size:12px;color:var(--color-text-secondary);">—</td>
+        </tr>`;
+      }
+
+      return dayEntries.map((e, idx) => {
+        const job = jobs.find(j => j.id === e.jobId);
+        const amended = e.amendments && e.amendments.length > 0;
+        const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
+        const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
+        return `
+        <tr class="day-row" id="row-o-${e.id}">
+          ${idx === 0 ? `
+          <td class="day-cell" rowspan="${dayEntries.length}" style="vertical-align:top;">
+            <div class="day-name">${dayName}</div>
+            <div class="day-date">${fmtShortDate(dayStr)}</div>
+            ${dayCellContent}
+          </td>` : ''}
+          <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;vertical-align:top;width:110px;">
+            <div style="font-weight:600;">${e.jobId}</div>
+            ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
+            ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
+          </td>
+          <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;width:130px;">
+            ${job ? job.property : ''}
+          </td>
+          <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;">
+            ${job ? job.description : ''}
+          </td>
+          <td style="padding:9px 6px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:500;text-align:center;vertical-align:top;white-space:nowrap;width:46px;">
+            ${e.hours}h
+          </td>
+          <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-style:italic;color:var(--color-text-secondary);vertical-align:top;">
+            ${e.comments || ''}
+            ${amended ? `<div class="audit-log-sm" style="font-style:normal;">Amended by ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
+          </td>
+          <td style="padding:6px 8px;text-align:center;vertical-align:top;width:60px;">
+            <button class="btn btn-sm" onclick="toggleEditOfficeEntries('${e.id}')">Edit</button>
+          </td>
+        </tr>
+        <tr id="editrow-o-${e.id}" style="display:none;">
+          <td colspan="7" style="padding:0;">
+            <div class="entry-edit" style="display:block;margin:0;border-radius:0;">
+              <div class="edit-grid">
+                <div class="edit-field">
+                  <label>Job</label>
+                  <select id="ej-o-${e.id}">
+                    ${jobs.filter(j => j.open || j.id === e.jobId).map(j =>
+                      `<option value="${j.id}" ${j.id === e.jobId ? 'selected' : ''}>${j.id} — ${j.property}</option>`
+                    ).join('')}
+                  </select>
+                </div>
+                <div class="edit-field">
+                  <label>Hours</label>
+                  <input type="number" id="eh-o-${e.id}" value="${e.hours}" min="0.5" max="16" step="0.5">
+                </div>
+              </div>
+              <div class="edit-comments">
+                <label>Comments</label>
+                <textarea id="en-o-${e.id}">${e.comments || ''}</textarea>
+              </div>
+              <div class="edit-comments">
+                <label>Reason for amendment</label>
+                <input type="text" id="er-o-${e.id}" placeholder="e.g. Entered wrong hours">
+              </div>
+              <div class="edit-actions">
+                <button class="btn btn-primary btn-sm" onclick="saveEditOfficeEntries('${e.id}')">Save changes</button>
+                <button class="btn btn-sm" onclick="toggleEditOfficeEntries('${e.id}')">Cancel</button>
+              </div>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }).join('');
+
+    html += `
+      <div style="margin-bottom:1.5rem;">
+        <p style="font-size:13px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">${worker.name}</p>
+        <table class="week-table">
+          <thead>
+            <tr>
+              <th style="width:100px;">Day</th>
+              <th style="width:110px;">W/O Number</th>
+              <th style="width:130px;">Property</th>
+              <th>Description</th>
+              <th style="width:46px;text-align:center;">Hrs</th>
+              <th>Comments</th>
+              <th style="width:60px;"></th>
+            </tr>
+          </thead>
+          <tbody>${workerRows}</tbody>
+        </table>
+      </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+function toggleEditOfficeEntries(id) {
+  const row = document.getElementById('editrow-o-' + id);
+  if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+}
+
+async function saveEditOfficeEntries(id) {
+  const entry = entries.find(e => e.id === id);
+  if (!entry) return;
+  const newJob = document.getElementById(`ej-o-${id}`).value;
+  const newHours = parseFloat(document.getElementById(`eh-o-${id}`).value);
+  const newComments = document.getElementById(`en-o-${id}`).value;
+  const reason = document.getElementById(`er-o-${id}`).value;
+  if (isNaN(newHours)) { alert('Please enter valid hours.'); return; }
+  const amendment = {
+    by: 'Office',
+    at: new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    note: reason
+  };
+  entry.amendments.push(amendment);
+  entry.jobId = newJob;
+  entry.hours = newHours;
+  entry.comments = newComments;
+  localStorage.setItem('entries', JSON.stringify(entries));
+  renderOfficeEntries();
+  const { synced } = await queueOrSend('updateEntry', { entry: { ...entry, amendments: amendmentsToString(entry.amendments) } });
+  if (synced) setSyncStatus('office', 'synced', 'Saved to Sheets');
 }
 
 function switchOfficeTab(tab) {
