@@ -1212,11 +1212,11 @@ function renderOfficeDashboard() {
   // Set default date range: today and previous 4 days
   const today = new Date();
   const todayStr = today.toISOString().slice(0,10);
-  const prev4 = new Date(today); prev4.setDate(today.getDate() - 4);
-  const prev4Str = prev4.toISOString().slice(0,10);
+  const prev7 = new Date(today); prev7.setDate(today.getDate() - 7);
+  const prev7Str = prev7.toISOString().slice(0,10);
   const fromEl = document.getElementById('oe-date-from');
   const toEl = document.getElementById('oe-date-to');
-  if (fromEl && !fromEl.value) fromEl.value = prev4Str;
+  if (fromEl && !fromEl.value) fromEl.value = prev7Str;
   if (toEl && !toEl.value) toEl.value = todayStr;
   renderOfficeEntries();
 }
