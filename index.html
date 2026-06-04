@@ -1417,6 +1417,14 @@ function renderOfficeEntries() {
                <div class="absence-picker" id="${oPickerId}">${officeAbsencePickerHTML(oPickerId, worker.name, dayStr, '')}</div>`
             : '';
 
+      const dayTotal = dayEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0);
+      const totalRow = `
+        <tr>
+          <td colspan="4" style="padding:6px 12px;"></td>
+          <td style="padding:6px 6px;font-size:12px;font-weight:600;text-align:center;width:46px;border-right:0.5px solid var(--color-border-tertiary);">${dayTotal}h</td>
+          <td colspan="2" style="padding:6px 10px;font-size:11px;color:var(--color-text-secondary);">Total</td>
+        </tr>`;
+
       if (isEmpty) {
         return `
         <tr class="day-row">
@@ -1499,7 +1507,7 @@ function renderOfficeEntries() {
             </div>
           </td>
         </tr>`;
-      }).join('');
+      }).join('') + totalRow;
     }).join('');
 
     html += `
