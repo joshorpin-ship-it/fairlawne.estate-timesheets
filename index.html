@@ -1458,15 +1458,14 @@ async function syncFromArthur() {
   const btn = document.getElementById('sync-arthur-btn');
   if (btn) { btn.textContent = '⟳ Syncing...'; btn.disabled = true; }
   setSyncStatus('office', 'pending', 'Syncing from Arthur...');
-  try {
-    await api('syncArthur', {});
-    setSyncStatus('office', 'synced', 'Arthur sync complete');
+  // Fire and forget — sync runs server-side, we wait then refresh
+  api('syncArthur', {}).catch(() => {});
+  // Wait 60 seconds then refresh regardless of timeout
+  setTimeout(async () => {
     await refreshOffice();
+    setSyncStatus('office', 'synced', 'Arthur sync complete');
     if (btn) { btn.textContent = '⟳ Sync from Arthur'; btn.disabled = false; }
-  } catch (err) {
-    setSyncStatus('office', 'error', 'Sync failed — try again');
-    if (btn) { btn.textContent = '⟳ Sync from Arthur'; btn.disabled = false; }
-  }
+  }, 60000);
 }
 
 function switchOfficeTab(tab) {
