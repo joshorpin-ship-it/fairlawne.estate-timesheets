@@ -395,10 +395,9 @@ textarea { height: 60px; resize: none; }
 
 <script>
 // ══════════════════════════════════════════════════════════════════
-//  CONFIGURATION — paste your Apps Script Web App URL below
 // ══════════════════════════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwNyNPp5DyOV3Bxq4bt3eN2BnOYjHTIml6BwJvbLbpU_qvEk0rrwWcJDQzmkQk-dI8P/exec'; // e.g. 'https://script.google.com/macros/s/XXXXX/exec'
-const POLL_INTERVAL_MS = 60000; // how often worker view auto-refreshes jobs (ms)
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwNyNPp5DyOV3Bxq4bt3eN2BnOYjHTIml6BwJvbLbpU_qvEk0rrwWcJDQzmkQk-dI8P/exec';
+const POLL_INTERVAL_MS = 60000;
 // ══════════════════════════════════════════════════════════════════
 
 let jobs = [];
@@ -417,7 +416,6 @@ window.addEventListener('load', () => {
     loadInitialData();
   } else {
     setSyncStatus('login', 'error', 'Not connected — set SCRIPT_URL');
-    // Load demo data so the app is still usable offline/demo mode
     jobs = [
       { id: 'JOB0001', property: 'Estate', description: 'Repair works at Estate', assignedTo: 'Chris R', open: true },
       { id: 'JOB0002', property: 'Gardens', description: 'Repair works at Gardens', assignedTo: 'Alex A', open: true },
@@ -513,7 +511,6 @@ function queueOrSend(action, payload) {
         return;
       } catch (e) { /* fall through to queue */ }
     }
-    // Save to local queue
     const item = { action, payload, _qid: Date.now() + Math.random() };
     syncQueue.push(item);
     localStorage.setItem('syncQueue', JSON.stringify(syncQueue));
@@ -565,7 +562,6 @@ function workerLogin() {
   renderEntriesByDate();
   setSyncStatus('worker', syncQueue.length ? 'pending' : 'synced',
     syncQueue.length ? syncQueue.length + ' entries pending sync' : 'Synced');
-  // Start polling for job updates
     if (pollTimer) clearInterval(pollTimer);
   	pollTimer = setInterval(pollJobs, POLL_INTERVAL_MS);
   	setTimeout(updateHoursPlaceholder, 500);
@@ -671,7 +667,6 @@ async function submitEntry() {
   const comments = document.getElementById('entry-comments').value;
   if (!jobId || !date || isNaN(hours)) { alert('Please fill in job, date, and hours.'); return; }
 
-  // Check hours already logged for this day
   const norm = normaliseDate(date);
   const alreadyLogged = entries
     .filter(e => e.worker === currentWorker && normaliseDate(e.date) === norm)
@@ -686,7 +681,6 @@ async function submitEntry() {
   entries.push(entry);
   localStorage.setItem('entries', JSON.stringify(entries));
 
-  // Reset form
   document.getElementById('job-select').value = '';
   document.getElementById('job-detail').style.display = 'none';
   document.getElementById('entry-hours').value = '';
@@ -705,8 +699,6 @@ async function submitEntry() {
 }
 
 // ── Amendment serialisation ───────────────────────────────────────
-// Stored in Sheets as: "Chris R · 02 Jun 2026, 20:59 — Wrong hours | Office · 03 Jun 2026, 09:00"
-// Each amendment separated by " | "
 
 function amendmentsToString(amendments) {
   if (!amendments || !amendments.length) return '';
@@ -719,15 +711,12 @@ function amendmentsToString(amendments) {
 
 function amendmentsFromString(str) {
   if (!str) return [];
-  // Try JSON first (backwards compat with old entries)
   try {
     const parsed = JSON.parse(str);
     if (Array.isArray(parsed)) {
-      // Strip out old 'from' field, keep only by/at/note
       return parsed.map(a => ({ by: a.by || '', at: a.at || '', note: a.note || '' }));
     }
   } catch(e) { /* not JSON, parse as string */ }
-  // Parse readable string format
   return str.split(' | ').map(part => {
     const dashIdx = part.indexOf(' — ');
     const meta = dashIdx > -1 ? part.slice(0, dashIdx) : part;
@@ -939,7 +928,6 @@ function toggleEditWeek(id) {
   const row = document.getElementById('editrow-w-' + id);
   if (row) row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
 }
-
 
 // ── Bank Holidays (England & Wales 2026-2027) ─────────────────────
 const BANK_HOLIDAYS = [
@@ -1224,13 +1212,11 @@ function renderOfficeDashboard() {
     const active = workers.filter(w => w.active !== false && w.active !== 'FALSE');
     awSel.innerHTML = '<option value="">Select worker...</option>' + active.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
   }
-  // Populate entries worker filter
   const owSel = document.getElementById('oe-worker-filter');
   if (owSel) {
     const active = workers.filter(w => w.active !== false && w.active !== 'FALSE');
     owSel.innerHTML = '<option value="">All workers</option>' + active.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
   }
-  // Set default date range: today and previous 4 days
   const today = new Date();
   const todayStr = today.toISOString().slice(0,10);
   const prev7 = new Date(today); prev7.setDate(today.getDate() - 7);
@@ -1292,11 +1278,9 @@ function renderOfficeEntries() {
   const today = new Date(); today.setHours(0,0,0,0);
   const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
 
-  // Determine date range
   const fromDate = fromVal ? new Date(fromVal + 'T00:00:00') : (() => { const d = new Date(); d.setDate(d.getDate()-4); return d; })();
   const toDate = toVal ? new Date(toVal + 'T00:00:00') : new Date();
 
-  // Build list of all calendar days in range (Mon-Fri only)
   const allDays = [];
   const cursor = new Date(fromDate);
   while (cursor <= toDate) {
@@ -1311,7 +1295,6 @@ function renderOfficeEntries() {
     cursor.setDate(cursor.getDate() + 1);
   }
 
-  // Get workers to display
   const activeWorkers = workers.filter(w => w.active !== false && w.active !== 'FALSE');
   const displayWorkers = workerFilter ? activeWorkers.filter(w => w.name === workerFilter) : activeWorkers;
 
@@ -1488,12 +1471,10 @@ async function syncFromArthur() {
   const btn = document.getElementById('sync-arthur-btn');
   if (btn) { btn.textContent = '⟳ Syncing...'; btn.disabled = true; }
   setSyncStatus('office', 'pending', 'Syncing from Arthur...');
-  // Use a dedicated long-timeout API call for the sync
   const cbName = 'cb_sync_' + Date.now();
   const params = new URLSearchParams({ action: 'syncArthur', data: '{}', callback: cbName });
   const script = document.createElement('script');
   const timer = setTimeout(() => {
-    // Timeout on JSONP — sync still scheduled, wait 300s then refresh
     delete window[cbName];
     if (script.parentNode) script.parentNode.removeChild(script);
     setSyncStatus('office', 'pending', 'Syncing from Arthur...');
@@ -1507,7 +1488,6 @@ async function syncFromArthur() {
     clearTimeout(timer);
     delete window[cbName];
     if (script.parentNode) script.parentNode.removeChild(script);
-    // Sync scheduled — wait 300s for it to complete then refresh
     setSyncStatus('office', 'pending', 'Syncing from Arthur...');
     setTimeout(async () => {
       await refreshOffice();
@@ -1535,10 +1515,6 @@ function switchOfficeTab(tab) {
   });
   if (tab === 'entries') renderOfficeEntries();
 }
-
-
-
-
 
 // ── Workers management ───────────────────────────────────────────
 
