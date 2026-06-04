@@ -1463,22 +1463,27 @@ async function syncFromArthur() {
   const params = new URLSearchParams({ action: 'syncArthur', data: '{}', callback: cbName });
   const script = document.createElement('script');
   const timer = setTimeout(() => {
-    // Timeout — sync may still be running server-side, refresh anyway
+    // Timeout on JSONP — sync still scheduled, wait 300s then refresh
     delete window[cbName];
     if (script.parentNode) script.parentNode.removeChild(script);
-    refreshOffice().then(() => {
+    setSyncStatus('office', 'pending', 'Syncing from Arthur...');
+    setTimeout(async () => {
+      await refreshOffice();
       setSyncStatus('office', 'synced', 'Sync complete');
       if (btn) { btn.textContent = '⟳ Sync from Arthur'; btn.disabled = false; }
-    });
-  }, 180000);
+    }, 300000);
+  }, 15000);
   window[cbName] = function(data) {
     clearTimeout(timer);
     delete window[cbName];
     if (script.parentNode) script.parentNode.removeChild(script);
-    refreshOffice().then(() => {
+    // Sync scheduled — wait 300s for it to complete then refresh
+    setSyncStatus('office', 'pending', 'Syncing from Arthur...');
+    setTimeout(async () => {
+      await refreshOffice();
       setSyncStatus('office', 'synced', 'Arthur sync complete');
       if (btn) { btn.textContent = '⟳ Sync from Arthur'; btn.disabled = false; }
-    });
+    }, 300000);
   };
   script.src = SCRIPT_URL + '?' + params.toString();
   script.onerror = function() {
