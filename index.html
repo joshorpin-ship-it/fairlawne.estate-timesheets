@@ -461,7 +461,7 @@ textarea { height: 60px; resize: none; }
 <script>
 // ══════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyswKm7x99Vw_v-o_ZzeM_GDqjslGkj1qSy2WlxWkUQIt-jQIQoA1m3-y1-F_9LH0-i/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwNyNPp5DyOV3Bxq4bt3eN2BnOYjHTIml6BwJvbLbpU_qvEk0rrwWcJDQzmkQk-dI8P/exec';
 const POLL_INTERVAL_MS = 60000;
 // ══════════════════════════════════════════════════════════════════
 
@@ -917,14 +917,14 @@ function renderWeek(wc) {
       const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
       const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
       return `
-      <tr class="day-row" id="row-w-${e.id}">
+      <tr class="day-row" id="row-w-${e.id}" ${idx === 0 ? 'style="border-top:0.5px solid var(--color-border-tertiary);"' : ''}>
         ${idx === 0 ? `
         <td class="day-cell" rowspan="${dayEntries.length}" style="vertical-align:top;">
           <div class="day-name">${dayNames[i]}</div>
           <div class="day-date">${fmtShortDate(dayStr)}</div>
           ${dayCellContent}
         </td>` : ''}
-        <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;vertical-align:top;width:110px;">
+        <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);${idx === 0 ? '' : 'border-left:0.5px solid var(--color-border-tertiary);'}font-size:12px;vertical-align:top;width:110px;">
           <div style="font-weight:600;">${e.jobId}</div>
           ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
           ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
@@ -1443,14 +1443,14 @@ function renderOfficeEntries() {
         const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
         const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
         return `
-        <tr class="day-row" id="row-o-${e.id}">
+        <tr class="day-row" id="row-o-${e.id}" ${idx === 0 ? 'style="border-top:0.5px solid var(--color-border-tertiary);"' : ''}>
           ${idx === 0 ? `
           <td class="day-cell" rowspan="${dayEntries.length}" style="vertical-align:top;">
             <div class="day-name">${dayName}</div>
             <div class="day-date">${fmtShortDate(dayStr)}</div>
             ${dayCellContent}
           </td>` : ''}
-          <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;vertical-align:top;width:110px;">
+          <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);${idx === 0 ? '' : 'border-left:0.5px solid var(--color-border-tertiary);'}font-size:12px;vertical-align:top;width:110px;">
             <div style="font-weight:600;">${e.jobId}</div>
             ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
             ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
