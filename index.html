@@ -266,7 +266,6 @@ textarea { height: 60px; resize: none; }
       <div class="office-subnav">
         <button class="active" onclick="switchOfficeTab('entries')" id="otab-entries">Time Entries</button>
         <button onclick="switchOfficeTab('jobs')" id="otab-jobs">Active Jobs</button>
-        <button onclick="switchOfficeTab('completed')" id="otab-completed">Completed Jobs</button>
         <button onclick="switchOfficeTab('workers')" id="otab-workers">Workers</button>
         <button onclick="switchOfficeTab('absences')" id="otab-absences">Absences</button>
       </div>
@@ -322,16 +321,7 @@ textarea { height: 60px; resize: none; }
         </div>
       </div>
 
-      <!-- Completed Jobs tab -->
-      <div id="office-tab-completed" style="display:none;">
-        <div class="card">
-          <div class="row-between card-header">
-            <p class="section-heading">Completed jobs</p>
-            <button class="btn btn-sm" onclick="loadCompletedJobs()">↻ Load completed jobs</button>
-          </div>
-          <div id="completed-job-list"><p class="text-muted">Click "Load completed jobs" to view.</p></div>
-        </div>
-      </div>
+
 
       <!-- Absences tab -->
       <div id="office-tab-absences" style="display:none;">
@@ -480,7 +470,6 @@ function loadInitialData() {
       if (!entries.find(e => e.id === q.id)) entries.push(q);
     });
     absences = (data.absences || []).map(a => ({ ...a, date: String(a.date || '') }));
-    localStorage.setItem('jobs', JSON.stringify(jobs));
     localStorage.setItem('entries', JSON.stringify(entries));
     localStorage.setItem('workers', JSON.stringify(workers));
     localStorage.setItem('absences', JSON.stringify(absences));
@@ -1172,7 +1161,7 @@ async function refreshOffice() {
   renderOfficeDashboard();
 }
 
-function renderJobRow(j, showReopen) {
+function renderJobRow(j) {
   return `
     <div class="entry-row">
       <div class="row-between">
@@ -1181,8 +1170,7 @@ function renderJobRow(j, showReopen) {
           <span class="text-muted" style="font-size:12px;margin-left:8px;">${j.property}</span>
           ${j.assignedTo ? `<span class="text-muted" style="font-size:12px;margin-left:8px;">· ${j.assignedTo}</span>` : ''}
         </div>
-        ${j.open && !showReopen ? `<button class="btn btn-sm" onclick="markComplete('${j.id}')">✓ Mark complete</button>` : ''}
-        ${showReopen ? `<button class="btn btn-sm" onclick="reopenJob('${j.id}')">↩ Reopen</button>` : ''}
+        <button class="btn btn-sm" onclick="markComplete('${j.id}')">✓ Mark complete</button>
       </div>
       <p class="text-muted" style="margin-top:2px;font-size:12px;">${j.description || ''}</p>
     </div>`;
@@ -1194,7 +1182,7 @@ function renderOfficeDashboard() {
 
   const openJobs = jobs.filter(j => j.open);
   document.getElementById('job-list').innerHTML = openJobs.length
-    ? openJobs.map(j => renderJobRow(j, false)).join('')
+    ? openJobs.map(j => renderJobRow(j)).join('')
     : '<p class="text-muted">No open jobs.</p>';
 
   renderWorkersList();
@@ -1219,9 +1207,7 @@ function renderOfficeDashboard() {
   const toEl = document.getElementById('oe-date-to');
   if (fromEl && !fromEl.value) fromEl.value = prev7Str;
   if (toEl && !toEl.value) toEl.value = todayStr;
-  // Only render entries if the entries tab is currently visible
-  const entriesTab = document.getElementById('office-tab-entries');
-  if (entriesTab && entriesTab.style.display !== 'none') renderOfficeEntries();
+  renderOfficeEntries();
 }
 
 function toggleOfficeAbsencePicker(pickerId) {
@@ -1466,43 +1452,16 @@ async function saveEditOfficeEntries(id) {
 }
 
 function switchOfficeTab(tab) {
-  const tabs = ['jobs','entries','completed','absences','workers'];
+  const tabs = ['jobs','entries','absences','workers'];
   tabs.forEach(t => {
     const el = document.getElementById('office-tab-' + t);
     const btn = document.getElementById('otab-' + t);
     if (el) el.style.display = t === tab ? 'block' : 'none';
     if (btn) btn.classList.toggle('active', t === tab);
   });
-  if (tab === 'entries') renderOfficeEntries();
 }
 
-async function loadCompletedJobs() {
-  const el = document.getElementById('completed-job-list');
-  el.innerHTML = '<p class="text-muted">Loading...</p>';
-  // Refresh from Sheets to get latest
-  if (SCRIPT_URL && navigator.onLine) {
-    try {
-      const data = await api('getData');
-      jobs = data.jobs || [];
-      localStorage.setItem('jobs', JSON.stringify(jobs));
-    } catch(e) {}
-  }
-  const completed = jobs.filter(j => !j.open);
-  el.innerHTML = completed.length
-    ? completed.map(j => renderJobRow(j, true)).join('')
-    : '<p class="text-muted">No completed jobs.</p>';
-}
 
-async function reopenJob(id) {
-  const j = jobs.find(j => j.id === id);
-  if (!j) return;
-  j.open = true;
-  localStorage.setItem('jobs', JSON.stringify(jobs));
-  loadCompletedJobs();
-  renderOfficeDashboard();
-  await queueOrSend('reopenJob', { jobId: id });
-  setSyncStatus('office', 'synced', 'Job reopened');
-}
 
 async function markComplete(id) {
   const j = jobs.find(j => j.id === id);
