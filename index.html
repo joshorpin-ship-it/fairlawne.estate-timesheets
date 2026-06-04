@@ -480,6 +480,7 @@ function loadInitialData() {
       if (!entries.find(e => e.id === q.id)) entries.push(q);
     });
     absences = (data.absences || []).map(a => ({ ...a, date: String(a.date || '') }));
+    localStorage.setItem('jobs', JSON.stringify(jobs));
     localStorage.setItem('entries', JSON.stringify(entries));
     localStorage.setItem('workers', JSON.stringify(workers));
     localStorage.setItem('absences', JSON.stringify(absences));
@@ -1218,7 +1219,9 @@ function renderOfficeDashboard() {
   const toEl = document.getElementById('oe-date-to');
   if (fromEl && !fromEl.value) fromEl.value = prev7Str;
   if (toEl && !toEl.value) toEl.value = todayStr;
-  renderOfficeEntries();
+  // Only render entries if the entries tab is currently visible
+  const entriesTab = document.getElementById('office-tab-entries');
+  if (entriesTab && entriesTab.style.display !== 'none') renderOfficeEntries();
 }
 
 function toggleOfficeAbsencePicker(pickerId) {
@@ -1470,6 +1473,7 @@ function switchOfficeTab(tab) {
     if (el) el.style.display = t === tab ? 'block' : 'none';
     if (btn) btn.classList.toggle('active', t === tab);
   });
+  if (tab === 'entries') renderOfficeEntries();
 }
 
 async function loadCompletedJobs() {
