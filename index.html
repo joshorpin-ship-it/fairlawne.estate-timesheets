@@ -1445,15 +1445,17 @@ function renderOfficeEntries() {
 
       const dayTotal = dayEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0);
       const totalRow = `
-        <tr>
-          <td colspan="4" style="padding:6px 12px;"></td>
-          <td style="padding:6px 6px;font-size:12px;font-weight:600;text-align:center;width:46px;">${dayTotal}h</td>
-          <td colspan="2" style="padding:6px 10px;font-size:11px;color:var(--color-text-secondary);">Total</td>
+        <tr style="background:var(--color-background-secondary);border-bottom:1.5px solid var(--color-border-secondary);">
+          <td style="padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:600;width:110px;">Total</td>
+          <td style="padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary);width:130px;"></td>
+          <td style="padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary);"></td>
+          <td style="padding:6px 6px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:600;text-align:center;width:46px;">${dayTotal}h</td>
+          <td colspan="2"></td>
         </tr>`;
 
       if (isEmpty) {
         return `
-        <tr class="day-row">
+        <tr class="day-row" style="border-top:1.5px solid var(--color-border-secondary);border-bottom:1.5px solid var(--color-border-secondary);">
           <td class="day-cell">
             <div class="day-name">${dayName}</div>
             <div class="day-date">${fmtShortDate(dayStr)}</div>
@@ -1469,7 +1471,7 @@ function renderOfficeEntries() {
         const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
         const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
         return `
-        <tr class="day-row" id="row-o-${e.id}" ${idx === 0 ? 'style="border-top:0.5px solid var(--color-border-tertiary);"' : ''}>
+        <tr class="day-row" id="row-o-${e.id}" ${idx === 0 ? 'style="border-top:1.5px solid var(--color-border-secondary);"' : ''}>
           ${idx === 0 ? `
           <td class="day-cell" rowspan="${dayEntries.length}" style="vertical-align:top;">
             <div class="day-name">${dayName}</div>
