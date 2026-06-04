@@ -917,14 +917,14 @@ function renderWeek(wc) {
       const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
       const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
       return `
-      <tr class="day-row" id="row-w-${e.id}" ${idx === 0 ? 'style="border-top:0.5px solid var(--color-border-tertiary);"' : ''}>
+      <tr class="day-row" id="row-w-${e.id}">
         ${idx === 0 ? `
         <td class="day-cell" rowspan="${dayEntries.length}" style="vertical-align:top;">
           <div class="day-name">${dayNames[i]}</div>
           <div class="day-date">${fmtShortDate(dayStr)}</div>
           ${dayCellContent}
         </td>` : ''}
-        <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);${idx === 0 ? '' : 'border-left:0.5px solid var(--color-border-tertiary);'}font-size:12px;vertical-align:top;width:110px;">
+        <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;vertical-align:top;width:110px;">
           <div style="font-weight:600;">${e.jobId}</div>
           ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
           ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
@@ -1392,7 +1392,7 @@ function renderOfficeEntries() {
     const workerEntries = entries.filter(e => e.worker === worker.name);
 
     const workerRows = allDays.map(dayStr => {
-      const dayEntries = workerEntries.filter(e => normaliseDate(e.date) === dayStr);
+      const dayEntries = workerEntries.filter(e => normaliseDate(e.date) === dayStr).sort((a, b) => String(a.jobId).localeCompare(String(b.jobId), undefined, { numeric: true }));
       const isEmpty = dayEntries.length === 0;
       const dayDate = new Date(dayStr + 'T00:00:00');
       const isPast = dayDate < today;
@@ -1443,14 +1443,14 @@ function renderOfficeEntries() {
         const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
         const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
         return `
-        <tr class="day-row" id="row-o-${e.id}" ${idx === 0 ? 'style="border-top:0.5px solid var(--color-border-tertiary);"' : ''}>
+        <tr class="day-row" id="row-o-${e.id}">
           ${idx === 0 ? `
           <td class="day-cell" rowspan="${dayEntries.length}" style="vertical-align:top;">
             <div class="day-name">${dayName}</div>
             <div class="day-date">${fmtShortDate(dayStr)}</div>
             ${dayCellContent}
           </td>` : ''}
-          <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);${idx === 0 ? '' : 'border-left:0.5px solid var(--color-border-tertiary);'}font-size:12px;vertical-align:top;width:110px;">
+          <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;vertical-align:top;width:110px;">
             <div style="font-weight:600;">${e.jobId}</div>
             ${amended ? `<span class="badge-amended-sm">Amended</span>` : ''}
             ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
