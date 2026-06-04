@@ -1446,6 +1446,7 @@ function renderOfficeEntries() {
       const dayTotal = dayEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0);
       const totalRow = `
         <tr style="background:var(--color-background-secondary);border-bottom:1.5px solid var(--color-border-secondary);">
+          <td style="padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary);width:100px;"></td>
           <td style="padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:600;width:110px;">Total</td>
           <td style="padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary);width:130px;"></td>
           <td style="padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary);"></td>
