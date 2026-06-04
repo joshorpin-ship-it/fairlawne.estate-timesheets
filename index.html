@@ -1460,12 +1460,12 @@ async function syncFromArthur() {
   setSyncStatus('office', 'pending', 'Syncing from Arthur...');
   // Fire and forget — sync runs server-side, we wait then refresh
   api('syncArthur', {}).catch(() => {});
-  // Wait 60 seconds then refresh regardless of timeout
+  // Wait 180 seconds then refresh regardless of timeout
   setTimeout(async () => {
     await refreshOffice();
     setSyncStatus('office', 'synced', 'Arthur sync complete');
     if (btn) { btn.textContent = '⟳ Sync from Arthur'; btn.disabled = false; }
-  }, 60000);
+  }, 180000);
 }
 
 function switchOfficeTab(tab) {
