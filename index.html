@@ -285,7 +285,10 @@ textarea { height: 60px; resize: none; }
         <div class="card">
           <div class="row-between card-header">
             <p class="section-heading">Active jobs</p>
-            <button class="btn btn-sm" onclick="refreshOffice()">↻ Refresh</button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm" onclick="refreshOffice()">↻ Refresh</button>
+              <button class="btn btn-sm" id="sync-arthur-btn" onclick="syncFromArthur()">⟳ Sync from Arthur</button>
+            </div>
           </div>
           <div id="job-list"><p class="text-muted">Loading...</p></div>
         </div>
@@ -1170,7 +1173,6 @@ function renderJobRow(j) {
           <span class="text-muted" style="font-size:12px;margin-left:8px;">${j.property}</span>
           ${j.assignedTo ? `<span class="text-muted" style="font-size:12px;margin-left:8px;">· ${j.assignedTo}</span>` : ''}
         </div>
-        <button class="btn btn-sm" onclick="markComplete('${j.id}')">✓ Mark complete</button>
       </div>
       <p class="text-muted" style="margin-top:2px;font-size:12px;">${j.description || ''}</p>
     </div>`;
@@ -1207,7 +1209,8 @@ function renderOfficeDashboard() {
   const toEl = document.getElementById('oe-date-to');
   if (fromEl && !fromEl.value) fromEl.value = prev7Str;
   if (toEl && !toEl.value) toEl.value = todayStr;
-  renderOfficeEntries();
+  const entriesTab = document.getElementById('office-tab-entries');
+  if (entriesTab && entriesTab.style.display !== 'none') renderOfficeEntries();
 }
 
 function toggleOfficeAbsencePicker(pickerId) {
@@ -1451,6 +1454,18 @@ async function saveEditOfficeEntries(id) {
   if (synced) setSyncStatus('office', 'synced', 'Saved to Sheets');
 }
 
+async function syncFromArthur() {
+  const btn = document.getElementById('sync-arthur-btn');
+  if (btn) { btn.textContent = '⟳ Syncing...'; btn.disabled = true; }
+  setSyncStatus('office', 'pending', 'Syncing from Arthur...');
+  api('syncArthur', {}).catch(() => {});
+  setTimeout(async () => {
+    await refreshOffice();
+    setSyncStatus('office', 'synced', 'Arthur sync complete');
+    if (btn) { btn.textContent = '⟳ Sync from Arthur'; btn.disabled = false; }
+  }, 180000);
+}
+
 function switchOfficeTab(tab) {
   const tabs = ['jobs','entries','absences','workers'];
   tabs.forEach(t => {
@@ -1459,19 +1474,12 @@ function switchOfficeTab(tab) {
     if (el) el.style.display = t === tab ? 'block' : 'none';
     if (btn) btn.classList.toggle('active', t === tab);
   });
+  if (tab === 'entries') renderOfficeEntries();
 }
 
 
 
-async function markComplete(id) {
-  const j = jobs.find(j => j.id === id);
-  if (!j) return;
-  j.open = false;
-  localStorage.setItem('jobs', JSON.stringify(jobs));
-  renderOfficeDashboard();
-  await queueOrSend('markComplete', { jobId: id });
-  setSyncStatus('office', 'synced', 'Updated in Sheets');
-}
+
 
 // ── Workers management ───────────────────────────────────────────
 
