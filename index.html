@@ -310,7 +310,7 @@ textarea { height: 60px; resize: none; }
             <div class="grid2">
               <div>
                 <label style="margin-top:0;">Worker</label>
-                <select id="oae-worker"></select>
+                <select id="oae-worker" onchange="populateOfficeEntryJobDropdown()"></select>
               </div>
               <div>
                 <label style="margin-top:0;">Job</label>
@@ -1678,25 +1678,38 @@ function toggleOfficeAddEntry() {
   form.style.display = open ? 'block' : 'none';
   btn.textContent = open ? '✕ Cancel' : '+ Add entry';
   if (open) {
-    const today = new Date().toISOString().slice(0,10);
-    document.getElementById('oae-date').value = today;
+    document.getElementById('oae-date').value = new Date().toISOString().slice(0,10);
     const workerSel = document.getElementById('oae-worker');
     const active = workers.filter(w => w.active !== false && w.active !== 'FALSE');
     workerSel.innerHTML = '<option value="">Select worker...</option>' + active.map(w => `<option value="${w.name}">${w.name}</option>`).join('');
-    const jobSel = document.getElementById('oae-job');
-    const allJobs = [
-      ...jobs.filter(j => j.open),
-      ...recurringJobs.filter(j => j.active !== false && j.active !== 'FALSE')
-    ];
-    jobSel.innerHTML = '<option value="">Select a job...</option>' + allJobs.map(j => `<option value="${j.id}">${j.id} · ${j.property}${j.description ? ' · ' + (j.description.length > 40 ? j.description.slice(0,40) + '…' : j.description) : ''}</option>`).join('');
+    document.getElementById('oae-job').innerHTML = '<option value="">Select worker first...</option>';
   }
 }
 
+function populateOfficeEntryJobDropdown() {
+  const selectedWorker = document.getElementById('oae-worker').value;
+  const jobSel = document.getElementById('oae-job');
+  if (!selectedWorker) {
+    jobSel.innerHTML = '<option value="">Select worker first...</option>';
+    return;
+  }
+  const openJobs = jobs.filter(j => j.open);
+  const assigned = openJobs.filter(j => expandAssignedTo(j.assignedTo).includes(selectedWorker));
+  const others = openJobs.filter(j => !expandAssignedTo(j.assignedTo).includes(selectedWorker));
+  const activeRecurring = recurringJobs.filter(j => j.active !== false && j.active !== 'FALSE');
+  const fmt = j => `<option value="${j.id}">${j.id} · ${j.property}${j.description ? ' · ' + (j.description.length > 40 ? j.description.slice(0,40) + '…' : j.description) : ''}</option>`;
+  let html = '<option value="">Select a job...</option>';
+  if (assigned.length) html += `<optgroup label="Assigned Jobs">${assigned.map(fmt).join('')}</optgroup>`;
+  if (others.length)   html += `<optgroup label="Other Jobs">${others.map(fmt).join('')}</optgroup>`;
+  if (activeRecurring.length) html += `<optgroup label="Recurring Jobs">${activeRecurring.map(fmt).join('')}</optgroup>`;
+  jobSel.innerHTML = html;
+}
+
 async function submitOfficeEntry() {
-  const worker = document.getElementById('oae-worker').value;
-  const jobId  = document.getElementById('oae-job').value;
-  const date   = document.getElementById('oae-date').value;
-  const hours  = parseFloat(document.getElementById('oae-hours').value);
+  const worker   = document.getElementById('oae-worker').value;
+  const jobId    = document.getElementById('oae-job').value;
+  const date     = document.getElementById('oae-date').value;
+  const hours    = parseFloat(document.getElementById('oae-hours').value);
   const comments = document.getElementById('oae-comments').value;
   if (!worker || !jobId || !date || isNaN(hours)) { alert('Please fill in all required fields.'); return; }
   const allJobs = [...jobs, ...recurringJobs];
@@ -1707,12 +1720,7 @@ async function submitOfficeEntry() {
     note: 'Entered by Office'
   };
   const entry = {
-    id: uid(),
-    worker,
-    jobId,
-    date,
-    hours,
-    comments,
+    id: uid(), worker, jobId, date, hours, comments,
     amendments: [amendment],
     createdAt: new Date().toISOString(),
     property: jobObj ? jobObj.property : '',
@@ -1721,7 +1729,7 @@ async function submitOfficeEntry() {
   entries.push(entry);
   localStorage.setItem('entries', JSON.stringify(entries));
   document.getElementById('oae-worker').value = '';
-  document.getElementById('oae-job').value = '';
+  document.getElementById('oae-job').innerHTML = '<option value="">Select worker first...</option>';
   document.getElementById('oae-hours').value = '';
   document.getElementById('oae-comments').value = '';
   toggleOfficeAddEntry();
