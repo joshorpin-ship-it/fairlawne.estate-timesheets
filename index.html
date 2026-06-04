@@ -467,6 +467,8 @@ function loadInitialData() {
     entries = (data.entries || []).map(e => ({
       ...e,
       comments: String(e.comments || ''),
+      property: String(e.property || ''),
+      description: String(e.description || ''),
       amendments: amendmentsFromString(typeof e.amendments === 'string' ? e.amendments : JSON.stringify(e.amendments || []))
     }));
     syncQueue.forEach(q => {
@@ -589,6 +591,8 @@ async function pollJobs() {
     entries = (data.entries || []).map(e => ({
       ...e,
       comments: String(e.comments || ''),
+      property: String(e.property || ''),
+      description: String(e.description || ''),
       amendments: amendmentsFromString(typeof e.amendments === 'string' ? e.amendments : JSON.stringify(e.amendments || []))
     }));
     syncQueue.forEach(q => { if (q.payload?.entry && !entries.find(e => e.id === q.payload.entry.id)) entries.push(q.payload.entry); });
@@ -664,7 +668,8 @@ async function submitEntry() {
     if (!proceed) return;
   }
 
-  const entry = { id: uid(), worker: currentWorker, jobId, date, hours, comments, amendments: [], createdAt: new Date().toISOString() };
+  const jobObj = jobs.find(j => j.id === jobId);
+  const entry = { id: uid(), worker: currentWorker, jobId, date, hours, comments, amendments: [], createdAt: new Date().toISOString(), property: jobObj ? jobObj.property : '', description: jobObj ? jobObj.description : '' };
   entries.push(entry);
   localStorage.setItem('entries', JSON.stringify(entries));
 
@@ -828,7 +833,7 @@ function renderWeek(wc) {
     }
 
     return dayEntries.map((e, idx) => {
-      const job = jobs.find(j => j.id === e.jobId);
+      const job = jobs.find(j => j.id === e.jobId); const jobProperty = job ? job.property : (e.property || ''); const jobDescription = job ? job.description : (e.description || '');
       const amended = e.amendments && e.amendments.length > 0;
       const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
       const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
@@ -846,10 +851,10 @@ function renderWeek(wc) {
           ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
         </td>
         <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;width:130px;">
-          ${job ? job.property : ''}
+          ${jobProperty}
         </td>
         <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;">
-          ${job ? job.description : ''}
+          ${jobDescription}
         </td>
         <td style="padding:9px 6px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:500;text-align:center;vertical-align:top;white-space:nowrap;width:46px;">
           ${e.hours}h
@@ -1027,7 +1032,7 @@ function groupByDate(arr) {
 }
 
 function renderEntryRow(e, isOffice) {
-  const job = jobs.find(j => j.id === e.jobId);
+  const job = jobs.find(j => j.id === e.jobId); const jobProperty = job ? job.property : (e.property || ''); const jobDescription = job ? job.description : (e.description || '');
   const amended = e.amendments && e.amendments.length > 0;
   const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
   const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
@@ -1334,7 +1339,7 @@ function renderOfficeEntries() {
       }
 
       return dayEntries.map((e, idx) => {
-        const job = jobs.find(j => j.id === e.jobId);
+        const job = jobs.find(j => j.id === e.jobId); const jobProperty = job ? job.property : (e.property || ''); const jobDescription = job ? job.description : (e.description || '');
         const amended = e.amendments && e.amendments.length > 0;
         const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
         const isPending = syncQueue.some(q => q.payload?.entry?.id === e.id);
@@ -1352,10 +1357,10 @@ function renderOfficeEntries() {
             ${isPending ? `<span class="badge-amended-sm" style="background:var(--color-background-info);color:var(--color-text-info);">Pending</span>` : ''}
           </td>
           <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;width:130px;">
-            ${job ? job.property : ''}
+            ${jobProperty}
           </td>
           <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;">
-            ${job ? job.description : ''}
+            ${jobDescription}
           </td>
           <td style="padding:9px 6px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:500;text-align:center;vertical-align:top;white-space:nowrap;width:46px;">
             ${e.hours}h
@@ -1576,7 +1581,7 @@ async function toggleWorker(name, currentlyActive) {
 function exportCSV() {
   const headers = ['Worker', 'Job ID', 'Property', 'Date', 'Hours', 'Comments', 'Reported Date', 'Assigned To', 'Amended', 'Amendment Count', 'Last Amended By', 'Last Amended At', 'Last Reason'];
   const rows = entries.map(e => {
-    const job = jobs.find(j => j.id === e.jobId);
+    const job = jobs.find(j => j.id === e.jobId); const jobProperty = job ? job.property : (e.property || ''); const jobDescription = job ? job.description : (e.description || '');
     const last = e.amendments.length ? e.amendments[e.amendments.length - 1] : null;
     return [
       e.worker, e.jobId, job ? job.property : '', e.date, e.hours, e.comments || '',
