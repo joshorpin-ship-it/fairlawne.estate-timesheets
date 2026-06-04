@@ -965,7 +965,7 @@ function renderWeek(wc) {
         </td>
         <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-style:italic;color:var(--color-text-secondary);vertical-align:top;">
           ${e.comments || ''}
-          ${amended ? `<div class="audit-log-sm" style="font-style:normal;">Amended by ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
+          ${amended ? `<div class="audit-log-sm" style="font-style:normal;">${lastAmend.note === 'Created by Office' ? 'Created by' : 'Amended by'} ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
         </td>
         <td style="padding:6px 8px;text-align:center;vertical-align:top;width:80px;">
           <div style="display:flex;flex-direction:column;gap:4px;">
@@ -1153,7 +1153,7 @@ function renderEntryRow(e, isOffice) {
             ${isPending ? `<span class="badge badge-pending">Pending sync</span>` : ''}
           </div>
           <p class="entry-meta">${e.hours}hrs${e.comments ? ' · ' + e.comments : ''}${isOffice ? ' · <strong>' + e.worker + '</strong>' : ''}</p>
-          ${amended ? `<p class="audit-log">Amended by ${lastAmend.by} · ${lastAmend.at}${lastAmend.note ? ' — ' + lastAmend.note : ''}</p>` : ''}
+          ${amended ? `<p class="audit-log">${lastAmend.note === 'Created by Office' ? 'Created by' : 'Amended by'} ${lastAmend.by} · ${lastAmend.at}${lastAmend.note && lastAmend.note !== 'Created by Office' ? ' — ' + lastAmend.note : ''}</p>` : ''}
         </div>
         <button class="btn btn-sm" onclick="toggleEdit('${e.id}', ${isOffice})">Edit</button>
       </div>
@@ -1492,7 +1492,7 @@ function renderOfficeEntries() {
           </td>
           <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-style:italic;color:var(--color-text-secondary);vertical-align:top;">
             ${e.comments || ''}
-            ${amended ? `<div class="audit-log-sm" style="font-style:normal;">Amended by ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
+            ${amended ? `<div class="audit-log-sm" style="font-style:normal;">${lastAmend.note === 'Created by Office' ? 'Created by' : 'Amended by'} ${lastAmend.by} · ${lastAmend.at}</div>` : ''}
           </td>
           <td style="padding:6px 8px;text-align:center;vertical-align:top;width:80px;">
             <div style="display:flex;flex-direction:column;gap:4px;">
@@ -1759,7 +1759,7 @@ async function submitOfficeEntry() {
   const amendment = {
     by: 'Office',
     at: new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-    note: 'Entered by Office'
+    note: 'Created by Office'
   };
   const entry = {
     id: uid(), worker, jobId, date, hours, comments,
