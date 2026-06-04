@@ -1458,12 +1458,36 @@ async function syncFromArthur() {
   const btn = document.getElementById('sync-arthur-btn');
   if (btn) { btn.textContent = '⟳ Syncing...'; btn.disabled = true; }
   setSyncStatus('office', 'pending', 'Syncing from Arthur...');
-  api('syncArthur', {}).catch(() => {});
-  setTimeout(async () => {
-    await refreshOffice();
-    setSyncStatus('office', 'synced', 'Arthur sync complete');
-    if (btn) { btn.textContent = '⟳ Sync from Arthur'; btn.disabled = false; }
+  // Use a dedicated long-timeout API call for the sync
+  const cbName = 'cb_sync_' + Date.now();
+  const params = new URLSearchParams({ action: 'syncArthur', data: '{}', callback: cbName });
+  const script = document.createElement('script');
+  const timer = setTimeout(() => {
+    // Timeout — sync may still be running server-side, refresh anyway
+    delete window[cbName];
+    if (script.parentNode) script.parentNode.removeChild(script);
+    refreshOffice().then(() => {
+      setSyncStatus('office', 'synced', 'Sync complete');
+      if (btn) { btn.textContent = '⟳ Sync from Arthur'; btn.disabled = false; }
+    });
   }, 180000);
+  window[cbName] = function(data) {
+    clearTimeout(timer);
+    delete window[cbName];
+    if (script.parentNode) script.parentNode.removeChild(script);
+    refreshOffice().then(() => {
+      setSyncStatus('office', 'synced', 'Arthur sync complete');
+      if (btn) { btn.textContent = '⟳ Sync from Arthur'; btn.disabled = false; }
+    });
+  };
+  script.src = SCRIPT_URL + '?' + params.toString();
+  script.onerror = function() {
+    clearTimeout(timer);
+    delete window[cbName];
+    setSyncStatus('office', 'error', 'Sync failed — try again');
+    if (btn) { btn.textContent = '⟳ Sync from Arthur'; btn.disabled = false; }
+  };
+  document.head.appendChild(script);
 }
 
 function switchOfficeTab(tab) {
