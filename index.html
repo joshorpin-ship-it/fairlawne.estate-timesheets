@@ -394,6 +394,22 @@ textarea { height: 60px; resize: none; }
           </div>
         </div>
       </div>
+      <div class="card" style="margin-top:1rem;">
+        <div class="row-between card-header">
+          <p class="section-heading">Absence types</p>
+        </div>
+        <div id="absence-types-list"><p class="text-muted">Loading...</p></div>
+        <div style="margin-top:1rem;padding-top:1rem;border-top:0.5px solid var(--color-border-tertiary);">
+          <p style="font-size:13px;font-weight:500;margin-bottom:0.75rem;">Add absence type</p>
+          <div>
+            <label style="margin-top:0;">Name</label>
+            <input type="text" id="new-absence-type-name" placeholder="e.g. Training Day">
+          </div>
+          <div class="form-footer">
+            <button class="btn btn-primary" onclick="addAbsenceType()">Add type</button>
+          </div>
+        </div>
+      </div>
 
       </div><!-- end absences tab -->
 
@@ -461,7 +477,7 @@ textarea { height: 60px; resize: none; }
 <script>
 // ══════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyswKm7x99Vw_v-o_ZzeM_GDqjslGkj1qSy2WlxWkUQIt-jQIQoA1m3-y1-F_9LH0-i/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyzd0SCwWwt01HG4xnbWptPkA8iMsZKmq-i-lz8DJyaXcr7KSl9L2uWMgq8aBCWjYav/exec';
 const POLL_INTERVAL_MS = 60000;
 // ══════════════════════════════════════════════════════════════════
 
@@ -470,6 +486,7 @@ let entries = [];
 let workers = [];
 let absences = [];
 let recurringJobs = [];
+let absenceTypes = [];
 let currentWorker = null;
 let syncQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
 let pollTimer = null;
@@ -539,8 +556,10 @@ function loadInitialData() {
     });
     absences = (data.absences || []).map(a => ({ ...a, date: String(a.date || '') }));
     recurringJobs = (data.recurringJobs || []);
+    absenceTypes = (data.absenceTypes || []);
     localStorage.setItem('entries', JSON.stringify(entries));
     localStorage.setItem('recurringJobs', JSON.stringify(recurringJobs));
+    localStorage.setItem('absenceTypes', JSON.stringify(absenceTypes));
     localStorage.setItem('workers', JSON.stringify(workers));
     localStorage.setItem('absences', JSON.stringify(absences));
     populateWorkerDropdown();
@@ -555,6 +574,7 @@ function loadInitialData() {
     workers = JSON.parse(localStorage.getItem('workers') || '[]');
     absences = JSON.parse(localStorage.getItem('absences') || '[]');
     recurringJobs = JSON.parse(localStorage.getItem('recurringJobs') || '[]');
+    absenceTypes = JSON.parse(localStorage.getItem('absenceTypes') || '[]');
     populateWorkerDropdown();
   });
 }
@@ -662,8 +682,10 @@ async function pollJobs() {
     syncQueue.forEach(q => { if (q.payload?.entry && !entries.find(e => e.id === q.payload.entry.id)) entries.push(q.payload.entry); });
     absences = (data.absences || absences).map(a => ({ ...a, date: String(a.date || '') }));
     recurringJobs = data.recurringJobs || recurringJobs;
+    absenceTypes = data.absenceTypes || absenceTypes;
     localStorage.setItem('jobs', JSON.stringify(jobs));
     localStorage.setItem('recurringJobs', JSON.stringify(recurringJobs));
+    localStorage.setItem('absenceTypes', JSON.stringify(absenceTypes));
     localStorage.setItem('entries', JSON.stringify(entries));
     localStorage.setItem('workers', JSON.stringify(workers));
     localStorage.setItem('absences', JSON.stringify(absences));
@@ -710,6 +732,12 @@ function populateJobDropdown() {
     html += activeRecurring.map(j => `<option value="${j.id}">${j.id} · ${j.property} · ${j.description && j.description.length > 40 ? j.description.slice(0, 40) + '…' : (j.description || '')}</option>`).join('');
     html += `</optgroup>`;
   }
+  const activeAbsenceTypes = absenceTypes.filter(a => a.active !== false && a.active !== 'FALSE');
+  if (activeAbsenceTypes.length) {
+    html += `<optgroup label="Absence / Leave">`;
+    html += activeAbsenceTypes.map(a => `<option value="${a.id}">${a.id} · ${a.name}</option>`).join('');
+    html += `</optgroup>`;
+  }
   sel.innerHTML = html;
 }
 
@@ -748,9 +776,8 @@ async function submitEntry() {
     .filter(e => e.worker === currentWorker && normaliseDate(e.date) === norm)
     .reduce((sum, e) => sum + parseFloat(e.hours || 0), 0);
   if (alreadyLogged + hours > 8) {
-    const over = (alreadyLogged + hours - 8).toFixed(1);
-    const proceed = confirm(`This entry would put you ${over}h over the 8-hour day. Do you want to continue?`);
-    if (!proceed) return;
+    alert('Overtime has to be approved via manager.');
+    return;
   }
 
   const jobObj = jobs.find(j => j.id === jobId);
@@ -892,11 +919,9 @@ function renderWeek(wc) {
     const dayCellContent = isBankHoliday
       ? `<div class="day-absence">Bank Holiday</div>`
       : absence
-        ? `<div class="day-absence" onclick="toggleAbsencePicker('${dayStr}')">${absence.reason}</div>
-           <div class="absence-picker" id="ap-${dayStr}">${absencePickerHTML(dayStr, absence.reason)}</div>`
+        ? `<div class="day-absence">${absence.reason}</div>`
         : shouldFlag
-          ? `<div class="day-flag" onclick="toggleAbsencePicker('${dayStr}')">⚠ ${hoursLogged > 0 ? hoursLogged + 'h logged' : 'No hours'}</div>
-             <div class="absence-picker" id="ap-${dayStr}">${absencePickerHTML(dayStr, '')}</div>`
+          ? `<div class="day-flag">⚠ ${hoursLogged > 0 ? hoursLogged + 'h logged' : 'No hours'}</div>`
           : '';
 
     if (isEmpty) {
@@ -1245,8 +1270,10 @@ async function refreshOffice() {
       }));
       absences = (data.absences || []).map(a => ({ ...a, date: String(a.date || '') }));
       recurringJobs = data.recurringJobs || [];
+      absenceTypes = data.absenceTypes || [];
       localStorage.setItem('jobs', JSON.stringify(jobs));
       localStorage.setItem('recurringJobs', JSON.stringify(recurringJobs));
+      localStorage.setItem('absenceTypes', JSON.stringify(absenceTypes));
       localStorage.setItem('entries', JSON.stringify(entries));
       localStorage.setItem('workers', JSON.stringify(workers));
       localStorage.setItem('absences', JSON.stringify(absences));
@@ -1290,6 +1317,7 @@ function renderOfficeDashboard() {
   renderWorkersList();
   renderOfficeAbsences();
   renderRecurringJobsList();
+  renderAbsenceTypesList();
   const awSel = document.getElementById('absence-worker-select');
   if (awSel) {
     const active = workers.filter(w => w.active !== false && w.active !== 'FALSE');
@@ -1410,11 +1438,9 @@ function renderOfficeEntries() {
       const dayCellContent = isBankHoliday
         ? `<div class="day-absence">Bank Holiday</div>`
         : absence
-          ? `<div class="day-absence" onclick="toggleOfficeAbsencePicker('${oPickerId}')">${absence.reason}</div>
-             <div class="absence-picker" id="${oPickerId}">${officeAbsencePickerHTML(oPickerId, worker.name, dayStr, absence.reason)}</div>`
+          ? `<div class="day-absence">${absence.reason}</div>`
           : shouldFlag
-            ? `<div class="day-flag" onclick="toggleOfficeAbsencePicker('${oPickerId}')">⚠ ${hoursLogged > 0 ? hoursLogged + 'h logged' : 'No hours'}</div>
-               <div class="absence-picker" id="${oPickerId}">${officeAbsencePickerHTML(oPickerId, worker.name, dayStr, '')}</div>`
+            ? `<div class="day-flag">⚠ ${hoursLogged > 0 ? hoursLogged + 'h logged' : 'No hours'}</div>`
             : '';
 
       const dayTotal = dayEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0);
@@ -1716,6 +1742,8 @@ function populateOfficeEntryJobDropdown() {
   if (assigned.length) html += `<optgroup label="Assigned Jobs">${assigned.map(fmt).join('')}</optgroup>`;
   if (others.length)   html += `<optgroup label="Other Jobs">${others.map(fmt).join('')}</optgroup>`;
   if (activeRecurring.length) html += `<optgroup label="Recurring Jobs">${activeRecurring.map(fmt).join('')}</optgroup>`;
+  const activeAbsTypes = absenceTypes.filter(a => a.active !== false && a.active !== 'FALSE');
+  if (activeAbsTypes.length) html += `<optgroup label="Absence / Leave">${activeAbsTypes.map(a => `<option value="${a.id}">${a.id} · ${a.name}</option>`).join('')}</optgroup>`;
   jobSel.innerHTML = html;
 }
 
@@ -1764,6 +1792,49 @@ async function deleteEntry(id, isOffice) {
   }
   const { synced } = await queueOrSend('deleteEntry', { id });
   if (synced) setSyncStatus(isOffice ? 'office' : 'worker', 'synced', 'Entry deleted');
+}
+
+function renderAbsenceTypesList() {
+  const el = document.getElementById('absence-types-list');
+  if (!el) return;
+  if (!absenceTypes.length) { el.innerHTML = '<p class="text-muted">No absence types yet.</p>'; return; }
+  el.innerHTML = absenceTypes.map(a => {
+    const active = a.active !== false && a.active !== 'FALSE';
+    return `
+    <div class="entry-row" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div style="flex:1;">
+        <span style="font-size:13px;font-weight:500;">${a.id}</span>
+        <span class="badge ${active ? 'badge-open' : 'badge-done'}" style="margin-left:8px;">${active ? 'Active' : 'Inactive'}</span>
+      </div>
+      <button class="btn btn-sm" onclick="toggleAbsenceType('${a.id}', ${active})">${active ? 'Deactivate' : 'Reactivate'}</button>
+    </div>`;
+  }).join('');
+}
+
+async function addAbsenceType() {
+  const name = document.getElementById('new-absence-type-name').value.trim();
+  if (!name) { alert('Please enter a name.'); return; }
+  const id = name.toUpperCase().replace(/\s+/g, '_');
+  if (absenceTypes.find(a => a.id === id)) { alert('An absence type with that name already exists.'); return; }
+  const absType = { id, name, active: true };
+  absenceTypes.push(absType);
+  localStorage.setItem('absenceTypes', JSON.stringify(absenceTypes));
+  document.getElementById('new-absence-type-name').value = '';
+  renderAbsenceTypesList();
+  populateJobDropdown();
+  const { synced } = await queueOrSend('saveAbsenceType', { absenceType: absType });
+  if (synced) setSyncStatus('office', 'synced', 'Absence type saved');
+}
+
+async function toggleAbsenceType(id, currentlyActive) {
+  const a = absenceTypes.find(a => a.id === id);
+  if (!a) return;
+  a.active = !currentlyActive;
+  localStorage.setItem('absenceTypes', JSON.stringify(absenceTypes));
+  renderAbsenceTypesList();
+  populateJobDropdown();
+  const { synced } = await queueOrSend('saveAbsenceType', { absenceType: a });
+  if (synced) setSyncStatus('office', 'synced', 'Absence type updated');
 }
 
 function switchOfficeTab(tab) {
