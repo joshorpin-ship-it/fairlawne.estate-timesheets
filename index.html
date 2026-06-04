@@ -268,6 +268,7 @@ textarea { height: 60px; resize: none; }
         <button onclick="switchOfficeTab('jobs')" id="otab-jobs">Active Jobs</button>
         <button onclick="switchOfficeTab('workers')" id="otab-workers">Workers</button>
         <button onclick="switchOfficeTab('absences')" id="otab-absences">Absences</button>
+        <button onclick="switchOfficeTab('recurring')" id="otab-recurring">Recurring Jobs</button>
       </div>
 
       <!-- Active Jobs tab -->
@@ -362,6 +363,36 @@ textarea { height: 60px; resize: none; }
 
       </div><!-- end absences tab -->
 
+      <!-- Recurring Jobs tab -->
+      <div id="office-tab-recurring" style="display:none;">
+        <div class="card">
+          <div class="row-between card-header">
+            <p class="section-heading">Recurring jobs</p>
+          </div>
+          <div id="recurring-job-list"><p class="text-muted">Loading...</p></div>
+          <div style="margin-top:1rem;padding-top:1rem;border-top:0.5px solid var(--color-border-tertiary);">
+            <p style="font-size:13px;font-weight:500;margin-bottom:0.75rem;">Add recurring job</p>
+            <div class="grid2">
+              <div>
+                <label style="margin-top:0;">W/O Number</label>
+                <input type="text" id="rj-id" placeholder="e.g. WO1234">
+              </div>
+              <div>
+                <label style="margin-top:0;">Property</label>
+                <input type="text" id="rj-property" placeholder="Property name">
+              </div>
+            </div>
+            <div style="margin-top:12px;">
+              <label style="margin-top:0;">Description</label>
+              <input type="text" id="rj-description" placeholder="Job description">
+            </div>
+            <div class="form-footer">
+              <button class="btn btn-primary" onclick="addRecurringJob()">Add job</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Workers tab -->
       <div id="office-tab-workers" style="display:none;">
       <div class="card">
@@ -396,7 +427,7 @@ textarea { height: 60px; resize: none; }
 <script>
 // ══════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwprClL5VOxtCkhSGmfNnxgAarlL7NYo9XKYtq97E2T05iQ6XIINi5MkDUyJ6g5d_A/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbycgd1qaP-RNN1IgIt7FSTOFHZ921k0HUjXe4-J3yq3bnKcqrFSUsZF0Wkk2NAdSB83/exec';
 const POLL_INTERVAL_MS = 60000;
 // ══════════════════════════════════════════════════════════════════
 
@@ -404,6 +435,7 @@ let jobs = [];
 let entries = [];
 let workers = [];
 let absences = [];
+let recurringJobs = [];
 let currentWorker = null;
 let syncQueue = JSON.parse(localStorage.getItem('syncQueue') || '[]');
 let pollTimer = null;
@@ -472,7 +504,9 @@ function loadInitialData() {
       if (!entries.find(e => e.id === q.id)) entries.push(q);
     });
     absences = (data.absences || []).map(a => ({ ...a, date: String(a.date || '') }));
+    recurringJobs = (data.recurringJobs || []);
     localStorage.setItem('entries', JSON.stringify(entries));
+    localStorage.setItem('recurringJobs', JSON.stringify(recurringJobs));
     localStorage.setItem('workers', JSON.stringify(workers));
     localStorage.setItem('absences', JSON.stringify(absences));
     populateWorkerDropdown();
@@ -486,6 +520,7 @@ function loadInitialData() {
     entries = JSON.parse(localStorage.getItem('entries') || '[]');
     workers = JSON.parse(localStorage.getItem('workers') || '[]');
     absences = JSON.parse(localStorage.getItem('absences') || '[]');
+    recurringJobs = JSON.parse(localStorage.getItem('recurringJobs') || '[]');
     populateWorkerDropdown();
   });
 }
@@ -592,7 +627,9 @@ async function pollJobs() {
     }));
     syncQueue.forEach(q => { if (q.payload?.entry && !entries.find(e => e.id === q.payload.entry.id)) entries.push(q.payload.entry); });
     absences = (data.absences || absences).map(a => ({ ...a, date: String(a.date || '') }));
+    recurringJobs = data.recurringJobs || recurringJobs;
     localStorage.setItem('jobs', JSON.stringify(jobs));
+    localStorage.setItem('recurringJobs', JSON.stringify(recurringJobs));
     localStorage.setItem('entries', JSON.stringify(entries));
     localStorage.setItem('workers', JSON.stringify(workers));
     localStorage.setItem('absences', JSON.stringify(absences));
@@ -626,16 +663,17 @@ function populateJobDropdown() {
   const sel = document.getElementById('job-select');
   const open = jobs.filter(j => j.open);
   const mine = open.filter(j => expandAssignedTo(j.assignedTo).includes(currentWorker));
-  const others = open.filter(j => j.assignedTo !== currentWorker);
   let html = '<option value="">Select a job...</option>';
   if (mine.length) {
     html += `<optgroup label="Your assigned jobs">`;
     html += mine.map(j => `<option value="${j.id}">${j.id} · ${j.property} · ${j.description && j.description.length > 40 ? j.description.slice(0, 40) + '…' : (j.description || '')}</option>`).join('');
     html += `</optgroup>`;
   }
-  if (others.length) {
-    html += `<optgroup label="Other jobs">`;
-    html += others.map(j => `<option value="${j.id}">${j.id} · ${j.property} · ${j.description && j.description.length > 40 ? j.description.slice(0, 40) + '…' : (j.description || '')}</option>`).join('');
+
+  const activeRecurring = recurringJobs.filter(j => j.active !== false && j.active !== 'FALSE');
+  if (activeRecurring.length) {
+    html += `<optgroup label="Recurring Jobs">`;
+    html += activeRecurring.map(j => `<option value="${j.id}">${j.id} · ${j.property} · ${j.description && j.description.length > 40 ? j.description.slice(0, 40) + '…' : (j.description || '')}</option>`).join('');
     html += `</optgroup>`;
   }
   sel.innerHTML = html;
@@ -881,7 +919,7 @@ function renderWeek(wc) {
               <div class="edit-field">
                 <label>Job</label>
                 <select id="ej-w-${e.id}">
-                  ${jobs.filter(j => j.open || j.id === e.jobId).map(j =>
+                  ${[...jobs.filter(j => j.open || j.id === e.jobId), ...recurringJobs.filter(j => j.active !== false && j.active !== 'FALSE')].filter((j,i,a) => a.findIndex(x=>x.id===j.id)===i).map(j =>
                     `<option value="${j.id}" ${j.id === e.jobId ? 'selected' : ''}>${j.id} — ${j.property}</option>`
                   ).join('')}
                 </select>
@@ -1062,7 +1100,7 @@ function renderEntryRow(e, isOffice) {
           <div class="edit-field">
             <label>Job</label>
             <select id="ej-${p}-${e.id}">
-              ${jobs.filter(j => j.open || j.id === e.jobId).map(j =>
+              ${[...jobs.filter(j => j.open || j.id === e.jobId), ...recurringJobs.filter(j => j.active !== false && j.active !== 'FALSE')].filter((j,i,a) => a.findIndex(x=>x.id===j.id)===i).map(j =>
                 `<option value="${j.id}" ${j.id === e.jobId ? 'selected' : ''}>${j.id} — ${j.property}</option>`
               ).join('')}
             </select>
@@ -1169,7 +1207,9 @@ async function refreshOffice() {
         amendments: amendmentsFromString(typeof e.amendments === 'string' ? e.amendments : JSON.stringify(e.amendments || []))
       }));
       absences = (data.absences || []).map(a => ({ ...a, date: String(a.date || '') }));
+      recurringJobs = data.recurringJobs || [];
       localStorage.setItem('jobs', JSON.stringify(jobs));
+      localStorage.setItem('recurringJobs', JSON.stringify(recurringJobs));
       localStorage.setItem('entries', JSON.stringify(entries));
       localStorage.setItem('workers', JSON.stringify(workers));
       localStorage.setItem('absences', JSON.stringify(absences));
@@ -1212,6 +1252,7 @@ function renderOfficeDashboard() {
 
   renderWorkersList();
   renderOfficeAbsences();
+  renderRecurringJobsList();
   const awSel = document.getElementById('absence-worker-select');
   if (awSel) {
     const active = workers.filter(w => w.active !== false && w.active !== 'FALSE');
@@ -1393,7 +1434,7 @@ function renderOfficeEntries() {
                 <div class="edit-field">
                   <label>Job</label>
                   <select id="ej-o-${e.id}">
-                    ${jobs.filter(j => j.open || j.id === e.jobId).map(j =>
+                    ${[...jobs.filter(j => j.open || j.id === e.jobId), ...recurringJobs.filter(j => j.active !== false && j.active !== 'FALSE')].filter((j,i,a) => a.findIndex(x=>x.id===j.id)===i).map(j =>
                       `<option value="${j.id}" ${j.id === e.jobId ? 'selected' : ''}>${j.id} — ${j.property}</option>`
                     ).join('')}
                   </select>
@@ -1510,8 +1551,94 @@ async function syncFromArthur() {
   document.head.appendChild(script);
 }
 
+function renderRecurringJobsList() {
+  const el = document.getElementById('recurring-job-list');
+  if (!el) return;
+  if (!recurringJobs.length) { el.innerHTML = '<p class="text-muted">No recurring jobs yet.</p>'; return; }
+  el.innerHTML = recurringJobs.map(j => {
+    const active = j.active !== false && j.active !== 'FALSE';
+    return `
+    <div class="entry-row" id="rj-row-${j.id}">
+      <div class="row-between">
+        <div>
+          <span style="font-size:13px;font-weight:500;">${j.id}</span>
+          <span class="text-muted" style="font-size:12px;margin-left:8px;">${j.property}</span>
+          <span class="badge ${active ? 'badge-open' : 'badge-done'}" style="margin-left:8px;">${active ? 'Active' : 'Inactive'}</span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" onclick="toggleEditRecurring('${j.id}')">Edit</button>
+          <button class="btn btn-sm" onclick="toggleRecurringJob('${j.id}', ${active})">${active ? 'Deactivate' : 'Reactivate'}</button>
+        </div>
+      </div>
+      <p class="text-muted" style="margin-top:2px;font-size:12px;">${j.description || ''}</p>
+      <div class="entry-edit" id="rj-edit-${j.id}" style="display:none;">
+        <div class="edit-grid">
+          <div class="edit-field">
+            <label>Property</label>
+            <input type="text" id="rj-ep-${j.id}" value="${j.property || ''}">
+          </div>
+          <div class="edit-field">
+            <label>Description</label>
+            <input type="text" id="rj-ed-${j.id}" value="${j.description || ''}">
+          </div>
+        </div>
+        <div class="edit-actions">
+          <button class="btn btn-primary btn-sm" onclick="saveEditRecurring('${j.id}')">Save</button>
+          <button class="btn btn-sm" onclick="toggleEditRecurring('${j.id}')">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleEditRecurring(id) {
+  const el = document.getElementById('rj-edit-' + id);
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveEditRecurring(id) {
+  const j = recurringJobs.find(j => j.id === id);
+  if (!j) return;
+  j.property = document.getElementById('rj-ep-' + id).value.trim();
+  j.description = document.getElementById('rj-ed-' + id).value.trim();
+  localStorage.setItem('recurringJobs', JSON.stringify(recurringJobs));
+  renderRecurringJobsList();
+  populateJobDropdown();
+  const { synced } = await queueOrSend('saveRecurringJob', { job: j });
+  if (synced) setSyncStatus('office', 'synced', 'Recurring job updated');
+}
+
+async function toggleRecurringJob(id, currentlyActive) {
+  const j = recurringJobs.find(j => j.id === id);
+  if (!j) return;
+  j.active = !currentlyActive;
+  localStorage.setItem('recurringJobs', JSON.stringify(recurringJobs));
+  renderRecurringJobsList();
+  populateJobDropdown();
+  const { synced } = await queueOrSend('saveRecurringJob', { job: j });
+  if (synced) setSyncStatus('office', 'synced', 'Recurring job updated');
+}
+
+async function addRecurringJob() {
+  const id = document.getElementById('rj-id').value.trim();
+  const property = document.getElementById('rj-property').value.trim();
+  const description = document.getElementById('rj-description').value.trim();
+  if (!id || !property) { alert('Please enter a W/O number and property.'); return; }
+  if (recurringJobs.find(j => j.id.toLowerCase() === id.toLowerCase())) { alert('A recurring job with that ID already exists.'); return; }
+  const job = { id, property, description, active: true };
+  recurringJobs.push(job);
+  localStorage.setItem('recurringJobs', JSON.stringify(recurringJobs));
+  document.getElementById('rj-id').value = '';
+  document.getElementById('rj-property').value = '';
+  document.getElementById('rj-description').value = '';
+  renderRecurringJobsList();
+  populateJobDropdown();
+  const { synced } = await queueOrSend('saveRecurringJob', { job });
+  if (synced) setSyncStatus('office', 'synced', 'Recurring job saved');
+}
+
 function switchOfficeTab(tab) {
-  const tabs = ['jobs','entries','absences','workers'];
+  const tabs = ['jobs','entries','absences','workers','recurring'];
   tabs.forEach(t => {
     const el = document.getElementById('office-tab-' + t);
     const btn = document.getElementById('otab-' + t);
@@ -1519,6 +1646,7 @@ function switchOfficeTab(tab) {
     if (btn) btn.classList.toggle('active', t === tab);
   });
   if (tab === 'entries') renderOfficeEntries();
+  if (tab === 'recurring') renderRecurringJobsList();
 }
 
 // ── Workers management ───────────────────────────────────────────
