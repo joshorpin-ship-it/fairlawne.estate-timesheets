@@ -264,7 +264,8 @@ textarea { height: 60px; resize: none; }
 
       <!-- Office sub-navigation -->
       <div class="office-subnav">
-        <button class="active" onclick="switchOfficeTab('entries')" id="otab-entries">Time Entries</button>
+        <button class="active" onclick="switchOfficeTab('daily')" id="otab-daily">Daily View</button>
+        <button onclick="switchOfficeTab('entries')" id="otab-entries">Time Entries</button>
         <button onclick="switchOfficeTab('jobs')" id="otab-jobs">Active Jobs</button>
         <button onclick="switchOfficeTab('workers')" id="otab-workers">Workers</button>
         <button onclick="switchOfficeTab('absences')" id="otab-absences">Absences</button>
@@ -295,8 +296,19 @@ textarea { height: 60px; resize: none; }
         </div>
       </div>
 
+      <!-- Daily View tab -->
+      <div id="office-tab-daily">
+        <div class="card">
+          <div class="row-between card-header">
+            <p class="section-heading" id="daily-view-heading">Today's entries</p>
+            <button class="btn btn-sm" onclick="renderDailyView()">↻ Refresh</button>
+          </div>
+          <div id="daily-view-list"><p class="text-muted">Loading...</p></div>
+        </div>
+      </div>
+
       <!-- Time Entries tab -->
-      <div id="office-tab-entries">
+      <div id="office-tab-entries" style="display:none;">
         <div class="card">
           <div class="row-between card-header">
             <p class="section-heading">Time entries &amp; audit trail</p>
@@ -1330,6 +1342,8 @@ function renderOfficeDashboard() {
   const toEl = document.getElementById('oe-date-to');
   if (fromEl && !fromEl.value) fromEl.value = prev7Str;
   if (toEl && !toEl.value) toEl.value = todayStr;
+  const dailyTab = document.getElementById('office-tab-daily');
+  if (dailyTab && dailyTab.style.display !== 'none') renderDailyView();
   const entriesTab = document.getElementById('office-tab-entries');
   if (entriesTab && entriesTab.style.display !== 'none') renderOfficeEntries();
 }
@@ -1833,14 +1847,106 @@ async function toggleAbsenceType(id, currentlyActive) {
   if (synced) setSyncStatus('office', 'synced', 'Absence type updated');
 }
 
+function renderDailyView() {
+  const el = document.getElementById('daily-view-list');
+  const heading = document.getElementById('daily-view-heading');
+  if (!el) return;
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayFmt = fmtDate(todayStr);
+  if (heading) heading.textContent = todayFmt;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const prevMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const activeWorkers = workers.filter(w => w.active !== false && w.active !== 'FALSE');
+
+  if (!activeWorkers.length) { el.innerHTML = '<p class="text-muted">No workers found.</p>'; return; }
+
+  let html = '';
+
+  activeWorkers.forEach(worker => {
+    const dayEntries = entries
+      .filter(e => e.worker === worker.name && normaliseDate(e.date) === todayStr)
+      .sort((a, b) => String(a.jobId).localeCompare(String(b.jobId), undefined, { numeric: true }));
+
+    const hoursLogged = dayEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0);
+    const absence = absences.find(a => a.worker === worker.name && normaliseDate(a.date) === todayStr);
+    const isBankHoliday = BANK_HOLIDAYS.includes(todayStr);
+    const shouldFlag = !isBankHoliday && !absence && hoursLogged < 8;
+
+    const statusBadge = isBankHoliday
+      ? `<span class="badge badge-done" style="margin-left:8px;">Bank Holiday</span>`
+      : absence
+        ? `<span class="badge badge-open" style="margin-left:8px;">${absence.reason}</span>`
+        : shouldFlag && hoursLogged === 0
+          ? `<span class="badge" style="margin-left:8px;background:#fdecea;color:var(--color-text-error);">No hours</span>`
+          : shouldFlag
+            ? `<span class="badge" style="margin-left:8px;background:#fff8e1;color:var(--color-text-warning);">${hoursLogged}h logged</span>`
+            : `<span class="badge badge-done" style="margin-left:8px;">Complete</span>`;
+
+    const dayTotal = dayEntries.reduce((s, e) => s + parseFloat(e.hours || 0), 0);
+
+    const entryRows = dayEntries.length === 0
+      ? `<tr><td colspan="7" style="padding:10px 12px;font-size:12px;color:var(--color-text-secondary);">No entries</td></tr>`
+      : dayEntries.map((e, idx) => {
+          const job = jobs.find(j => j.id === e.jobId);
+          const jobProperty = job ? job.property : (e.property || '');
+          const jobDescription = job ? job.description : (e.description || '');
+          const amended = e.amendments && e.amendments.length > 0;
+          const lastAmend = amended ? e.amendments[e.amendments.length - 1] : null;
+          return `
+          <tr class="day-row" ${idx === 0 ? 'style="border-top:1.5px solid var(--color-border-secondary);"' : ''}>
+            <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);${idx === 0 ? '' : 'border-left:0.5px solid var(--color-border-tertiary);'}font-size:12px;vertical-align:top;width:110px;">
+              <div style="font-weight:600;">${e.jobId}</div>
+              ${amended ? `<span class="badge-amended-sm">${lastAmend.note === 'Created by Office' ? 'Office' : 'Amended'}</span>` : ''}
+            </td>
+            <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;width:130px;">${jobProperty}</td>
+            <td style="padding:9px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;color:var(--color-text-secondary);vertical-align:top;">${jobDescription}</td>
+            <td style="padding:9px 6px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:500;text-align:center;vertical-align:top;white-space:nowrap;width:46px;">${e.hours}h</td>
+            <td style="padding:9px 10px;font-size:12px;font-style:italic;color:var(--color-text-secondary);vertical-align:top;">${e.comments || ''}${amended && lastAmend.note !== 'Created by Office' ? `<div class="audit-log-sm" style="font-style:normal;">Amended by ${lastAmend.by} · ${lastAmend.at}</div>` : ''}</td>
+          </tr>`;
+        }).join('') + `
+          <tr style="background:var(--color-background-secondary);border-bottom:1.5px solid var(--color-border-secondary);">
+            <td style="padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary);width:100px;"></td>
+            <td style="padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary);font-size:12px;font-weight:600;width:110px;">Total</td>
+            <td style="padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary);width:130px;"></td>
+            <td style="padding:6px 10px;border-right:0.5px solid var(--color-border-tertiary);"></td>
+            <td style="padding:6px 6px;font-size:12px;font-weight:600;text-align:center;width:46px;">${dayTotal}h</td>
+            <td></td>
+          </tr>`;
+
+    html += `
+      <div style="margin-bottom:1.5rem;">
+        <p style="font-size:13px;font-weight:600;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem;">
+          ${worker.name} ${statusBadge}
+        </p>
+        <table class="week-table">
+          <thead>
+            <tr>
+              <th style="width:110px;">W/O Number</th>
+              <th style="width:130px;">Property</th>
+              <th>Description</th>
+              <th style="width:46px;text-align:center;">Hrs</th>
+              <th>Comments</th>
+            </tr>
+          </thead>
+          <tbody>${entryRows}</tbody>
+        </table>
+      </div>`;
+  });
+
+  el.innerHTML = html;
+}
+
 function switchOfficeTab(tab) {
-  const tabs = ['jobs','entries','absences','workers','recurring'];
+  const tabs = ['daily','jobs','entries','absences','workers','recurring'];
   tabs.forEach(t => {
     const el = document.getElementById('office-tab-' + t);
     const btn = document.getElementById('otab-' + t);
     if (el) el.style.display = t === tab ? 'block' : 'none';
     if (btn) btn.classList.toggle('active', t === tab);
   });
+  if (tab === 'daily') renderDailyView();
   if (tab === 'entries') renderOfficeEntries();
   if (tab === 'recurring') renderRecurringJobsList();
 }
