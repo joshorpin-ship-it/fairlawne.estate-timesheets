@@ -726,12 +726,6 @@ function populateJobDropdown() {
     html += `</optgroup>`;
   }
 
-  const activeRecurring = recurringJobs.filter(j => j.active !== false && j.active !== 'FALSE');
-  if (activeRecurring.length) {
-    html += `<optgroup label="Recurring Jobs">`;
-    html += activeRecurring.map(j => `<option value="${j.id}">${j.id} · ${j.property} · ${j.description && j.description.length > 40 ? j.description.slice(0, 40) + '…' : (j.description || '')}</option>`).join('');
-    html += `</optgroup>`;
-  }
   const activeAbsenceTypes = absenceTypes.filter(a => a.active !== false && a.active !== 'FALSE');
   if (activeAbsenceTypes.length) {
     html += `<optgroup label="Absence / Leave">`;
@@ -1744,7 +1738,6 @@ function populateOfficeEntryJobDropdown() {
   let html = '<option value="">Select a job...</option>';
   if (assigned.length) html += `<optgroup label="Assigned Jobs">${assigned.map(fmt).join('')}</optgroup>`;
   if (others.length)   html += `<optgroup label="Other Jobs">${others.map(fmt).join('')}</optgroup>`;
-  if (activeRecurring.length) html += `<optgroup label="Recurring Jobs">${activeRecurring.map(fmt).join('')}</optgroup>`;
   const activeAbsTypes = absenceTypes.filter(a => a.active !== false && a.active !== 'FALSE');
   if (activeAbsTypes.length) html += `<optgroup label="Absence / Leave">${activeAbsTypes.map(a => `<option value="${a.id}">${a.id} · ${a.name}</option>`).join('')}</optgroup>`;
   jobSel.innerHTML = html;
@@ -1757,7 +1750,7 @@ async function submitOfficeEntry() {
   const hours    = parseFloat(document.getElementById('oae-hours').value);
   const comments = document.getElementById('oae-comments').value;
   if (!worker || !jobId || !date || isNaN(hours)) { alert('Please fill in all required fields.'); return; }
-  const allJobs = [...jobs, ...recurringJobs];
+  const allJobs = [...jobs];
   const jobObj = allJobs.find(j => j.id === jobId);
   const amendment = {
     by: 'Office',
